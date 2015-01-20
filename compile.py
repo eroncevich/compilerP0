@@ -3,7 +3,7 @@ from compiler.ast import *
 
 fout = open('test.s', 'w+')
 
-ast = compiler.parse("y=5;x=10+y+(-1)")
+ast = compiler.parse("print -input() +2")
 print ast
 
 def flatAst(ast):
@@ -35,10 +35,12 @@ def flatAst(ast):
     flatAst(ast.left)
     flatAst(ast.right)
   elif isinstance(ast,UnarySub):
-    print "Sub"
+    print "Neg"
     flatAst(ast.expr)
   elif isinstance(ast,CallFunc):
     print "CallFunc"
+    print ast.node
+    print ast.args
   else:
     print "Ended"
 
@@ -51,4 +53,4 @@ def setStack(size):
 
 
 flatAst(ast)
-setStack(4)
+#setStack(4)
