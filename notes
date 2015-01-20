@@ -1,0 +1,5 @@
+it runs:
+python2 compile.py test.py
+
+compiled version:
+gcc *.c test.s test.exe
