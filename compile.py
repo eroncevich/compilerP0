@@ -20,37 +20,48 @@ class flatParser:
         self.flatAst(stmt)
         print "****Stmt End****"
     elif isinstance(ast,Printnl):
-      print "Print"
-      self.flatAst(ast.nodes[0])
+      child = self.flatAst(ast.nodes[0])
+      self.flat.append(Printnl([child],None))
     elif isinstance(ast,Assign):
-      print "Assign"
-      self.flatAst(ast.nodes[0])
-      self.flatAst(ast.expr)
+      varVal = self.flatAst(ast.expr)
+      for node in ast.nodes:
+        varName = self.flatAst(node)
+        self.flat.append(Assign(varName, varVal))
+        self.tmp += 1
+      return varVal
     elif isinstance(ast,AssName):
-      print ast
+      return Name(ast.name)
     elif isinstance(ast,Discard):
       print "Discard"
+      child = self.flatAst(ast.expr)
+      if isinstance(child,CallFunc):
+        self.flat.append(child)
     elif isinstance(ast,Const):
-      print "Const:", ast.value
       return ast
     elif isinstance(ast,Name):
-      print "Name"
       return ast
-    elif isinstance(ast,Add):
-      print "Add"
+    elif isinstance(ast,Add): #Add
       l = self.flatAst(ast.left)
       r = self.flatAst(ast.right)
+      newTmp = Name('tmp'+`self.tmp`)
+      self.flat.append(Assign(newTmp, Add((l,r))))
       self.tmp += 1
+      return newTmp
 
     elif isinstance(ast,UnarySub):
-      print "Neg"
-      self.flatAst(ast.expr)
+      child = self.flatAst(ast.expr)
+      newTmp = Name('tmp'+`self.tmp`)
+      self.flat.append(Assign(newTmp, UnarySub(child)))
+      self.tmp += 1
+      return newTmp
     elif isinstance(ast,CallFunc):
-      print "CallFunc"
-      print ast.node
-      print ast.args
+      return ast
     else:
       print "Ended"
+  def printFlat(self):
+    print "*****Args*****"
+    for args in self.flat:
+      print args
 
 def setStack(size):
   fout.write(".globl main\n")
@@ -61,10 +72,12 @@ def setStack(size):
 
 if __name__ == "__main__":
   fout = open('test.s', 'w+')
-
-  ast = compiler.parse("x=-5\nprint x+2+input()")
+  inStr = "print 3+2+1"
+  ast = compiler.parse(inStr)
   parser = flatParser(ast)
+  print inStr, "\n"
   print ast
 
   parser.flatAst(parser.ast)
+  parser.printFlat()
   #setStack(4)
