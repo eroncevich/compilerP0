@@ -43,14 +43,14 @@ class flatParser:
     elif isinstance(ast,Add): #Add
       l = self.flatAst(ast.left)
       r = self.flatAst(ast.right)
-      newTmp = Name('tmp'+`self.tmp`)
+      newTmp = Name('tmp '+`self.tmp`)
       self.flat.append(Assign(newTmp, Add((l,r))))
       self.tmp += 1
       return newTmp
 
     elif isinstance(ast,UnarySub):
       child = self.flatAst(ast.expr)
-      newTmp = Name('tmp'+`self.tmp`)
+      newTmp = Name('tmp '+`self.tmp`)
       self.flat.append(Assign(newTmp, UnarySub(child)))
       self.tmp += 1
       return newTmp
@@ -63,12 +63,32 @@ class flatParser:
     for args in self.flat:
       print args
 
-def setStack(size):
-  fout.write(".globl main\n")
-  fout.write("main:\n")
-  fout.write("pushl %ebp\n")
-  fout.write("movl %esp, %ebp\n")
-  fout.write("subl $%d, %%ebp\n" % size)
+class pyTo86:
+  def __init__(self, flatAst, stackSize):
+    self.flatAst = flatAst
+    self.stackSize = stackSize*4
+    self.output = ""
+    self.varLookup = {}
+
+  def setStack(self):
+    self.output+=(".globl main\nmain:\n")
+    self.output+=("pushl %ebp\n")
+    self.output+=("movl %esp, %ebp\n")
+    self.output+=("subl $%d, %%ebp\n" % self.stackSize)
+    print self.output
+
+  def convert86(self):
+    self.output+=setStack
+    for curLine in self.flatAst:
+      if isinstance(curLine, Assign):
+        self.output
+        self.output+="movl "
+      if isinstance(curLine,Add):
+        print "hi"
+  def convertLine(self,curLine):
+    if isinstance(curLine,Add):
+      print "hi"
+
 
 if __name__ == "__main__":
   fout = open('test.s', 'w+')
@@ -80,4 +100,5 @@ if __name__ == "__main__":
 
   parser.flatAst(parser.ast)
   parser.printFlat()
-  #setStack(4)
+  to86 = pyTo86(parser.flat,parser.tmp)
+  to86.setStack()
