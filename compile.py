@@ -1,4 +1,5 @@
 import compiler
+import sys
 from compiler.ast import *
 
 
@@ -15,10 +16,7 @@ class flatParser:
       self.flatAst(ast.node)
     elif isinstance(ast,Stmt):
       for stmt in ast.nodes:
-        print "****Stmt Start****"
-        # return Stmt(self.flatAst(stmt))
         self.flatAst(stmt)
-        print "****Stmt End****"
     elif isinstance(ast,Printnl):
       child = self.flatAst(ast.nodes[0])
       self.flat.append(Printnl([child],None))
@@ -32,7 +30,6 @@ class flatParser:
     elif isinstance(ast,AssName):
       return Name(ast.name)
     elif isinstance(ast,Discard):
-      print "Discard"
       child = self.flatAst(ast.expr)
       if isinstance(child,CallFunc):
         self.flat.append(child)
@@ -88,14 +85,10 @@ class pyTo86:
   def convert86(self):
     for curLine in self.flatAst:
       if isinstance(curLine, Assign):
-        print curLine.nodes.name
         self.convertLine(curLine.expr, curLine.nodes.name)
-        #self.output
-        #self.output+="movl "
-        #self.varLookup[curLine.name] = self.varCounter
-        #self.varCounter += 1
       elif isinstance(curLine, Printnl):
-        self.output += self.getConstOrNamePrint(curLine.nodes[0])
+        #self.output += self.getConstOrNamePrint(curLine.nodes[0])
+        self.output += ("\tmovl %s, %%eax\n" % self.getConstOrName(curLine.nodes[0]))
         self.output += ("\tpushl %eax\n\tcall print_int_nl\n\tpopl %eax\n")
 
   def convertLine(self,curLine,tmpName):
@@ -103,7 +96,6 @@ class pyTo86:
       self.output += ("\tmovl %s, %%eax\n" % self.getConstOrName(curLine.left))
       self.output += ("\taddl %s, %%eax\n" % self.getConstOrName(curLine.right))
       self.output += ("\tmovl %%eax, -%d(%%ebp)\n" % self.getAddr(tmpName))
-      print "Add"
     elif isinstance(curLine,Const):
       self.output+=("\tmovl $%d,-%d(%%ebp)\n"% (curLine.value,self.getAddr(tmpName)) )
     elif isinstance(curLine,Name):
@@ -111,11 +103,9 @@ class pyTo86:
       self.output+=("\tmovl %%eax,-%d(%%ebp)\n"%self.getAddr(tmpName))
     elif isinstance(curLine,UnarySub):
       self.output += self.getConstOrNameSub(curLine.expr, tmpName)
-      print "Sub"
     elif isinstance(curLine,CallFunc):
       self.output += ("\tcall input\n")
       self.output += ("\tmovl %%eax, -%d(%%ebp)\n" % self.getAddr(tmpName))
-      print "Input"
 
   def getConstOrName(self, line):
     if isinstance(line, Name):
@@ -136,7 +126,6 @@ class pyTo86:
       return "\tmovl $%d, %%eax" % line.value
 
   def getAddr(self,varName):
-    print varName
     if varName not in self.varLookup:
       self.varLookup[varName] = self.varCounter
       self.varCounter+=4
@@ -149,9 +138,9 @@ class pyTo86:
 
 
 if __name__ == "__main__":
-  fout = open('test.s', 'w+')
-  # inStr = "x=2\ny=x\nx=4"
-  inStr = "x = input()\nprint x"
+  with open (sys.argv[1], "r") as myfile:
+    inStr=myfile.read()
+
   ast = compiler.parse(inStr)
   parser = flatParser(ast)
   print inStr, "\n"
@@ -165,4 +154,6 @@ if __name__ == "__main__":
   to86.endStack()
   print "\n"
   print to86.output
+  outFileName = sys.argv[1].replace('.py','.s')
+  fout = open(outFileName, 'w+')
   fout.write(to86.output)
