@@ -96,6 +96,9 @@ class pyTo86:
         #self.varCounter += 1
   def convertLine(self,curLine,tmpName):
     if isinstance(curLine,Add):
+      self.output += ("\tmovl %s, %%eax\n" % self.getConstOrName(curLine.left))
+      self.output += ("\taddl %s, %%eax\n" % self.getConstOrName(curLine.right))
+      self.output += ("\tmovl %%eax, -%d(%%ebp)\n" % self.getAddr(tmpName))
       print "Add"
     elif isinstance(curLine,Const):
       self.output+=("\tmovl $%d,-%d(%%ebp)\n"% (curLine.value,self.getAddr(tmpName)) )
@@ -106,6 +109,12 @@ class pyTo86:
       print "Sub"
     elif isinstance(curLine,CallFunc):
       print "Input"
+
+  def getConstOrName(self, line):
+    if isinstance(line, Name):
+      return "-%d(%%ebp)" % self.getAddr(line.name)
+    else:
+      return "$%d" % line.value
 
   def getAddr(self,varName):
     print varName
@@ -122,7 +131,8 @@ class pyTo86:
 
 if __name__ == "__main__":
   fout = open('test.s', 'w+')
-  inStr = "x=2\ny=x\nx=4"
+  # inStr = "x=2\ny=x\nx=4"
+  inStr = "x = input() + 1 + 2"
   ast = compiler.parse(inStr)
   parser = flatParser(ast)
   print inStr, "\n"
