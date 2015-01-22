@@ -96,24 +96,42 @@ class pyTo86:
         print self.varLookup
         #print self.varLookup(curLine.nodes)
         self.convertLine(curLine.expr, self.varLookup[curLine.nodes])
+        self.output += ("movl %%eax, -%d(%%ebp)\n" % self.varLookup[curLine.nodes])
         #self.output
         #self.output+="movl "
         #self.varLookup[curLine.name] = self.varCounter
         #self.varCounter += 1
       #if isinstance(curLine,Add):
         #print "hi"
+      elif isinstance(curLine, Printnl):
+        print curLine.nodes[0]
+        self.convertLine(curLine.nodes[0], 0)
+        self.output += ("pushl %eax\ncall print_int_nl\n")
+
   def convertLine(self,curLine,pos):
     if isinstance(curLine,Add):
+      self.convertLine(curLine.left, 0)
+      if (isinstance(curLine.right, Const)):
+        self.output += ("addl $%d, %%eax\n" % curLine.right.value)
+      else:
+        self.output += ("addl -%d(%%ebp), %%eax\n" % self.varLookup[curLine.right])
       print "Add"
     elif isinstance(curLine,Const):
       print "const"
-      self.output+=("movl $%d,-%d(%%ebp)\n"% (curLine.value,pos) )
+      # self.output+=("movl $%d,-%d(%%ebp)\n"% (curLine.value,pos) )
+      self.output += ("movl $%d, %%eax\n" % curLine.value)
     elif isinstance(curLine,Name):
+      print curLine.name
+      print self.varLookup
+      self.output += ("movl -%d(%%ebp), %%eax\n" % self.varLookup[curLine])
       print "Name"
     elif isinstance(curLine,UnarySub):
+      self.convertLine(curLine.expr, 0)
+      self.output += ("negl %eax\n")
       print "Sub"
     elif isinstance(curLine,CallFunc):
       print "Input"
+      self.output += ("call input\n")
 
   def endStack(self):
     self.output+=("movl $0,%eax\n")
@@ -123,7 +141,8 @@ class pyTo86:
 
 if __name__ == "__main__":
   fout = open('test.s', 'w+')
-  inStr = "x=2"
+  # inStr = "y=6\nx=-input()\nprint x + input()"
+  inStr = "print 1"
   ast = compiler.parse(inStr)
   parser = flatParser(ast)
   print inStr, "\n"
