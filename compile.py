@@ -96,7 +96,7 @@ class pyTo86:
         #self.varCounter += 1
       elif isinstance(curLine, Printnl):
         self.output += self.getConstOrNamePrint(curLine.nodes[0])
-        self.output += ("\tpushl %eax\n\tcall print_int_nl\n")
+        self.output += ("\tpushl %eax\n\tcall print_int_nl\n\tpopl %eax\n")
 
   def convertLine(self,curLine,tmpName):
     if isinstance(curLine,Add):
