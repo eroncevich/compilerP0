@@ -2,11 +2,15 @@
 main:
 	pushl %ebp
 	movl %esp, %ebp
-	subl $12, %esp
-	movl $2,-4(%ebp)
+	subl $8, %esp
+	call input
+	movl %eax, -4(%ebp)
 	movl -4(%ebp),%eax
 	movl %eax,-8(%ebp)
-	movl $4,-4(%ebp)
+	movl -8(%ebp), %eax
+	pushl %eax
+	call print_int_nl
+	popl %eax
 	movl $0,%eax
 	leave
 	ret
