@@ -43,6 +43,10 @@ class flatParser:
     elif isinstance(ast,Add): #Add
       l = self.flatAst(ast.left)
       r = self.flatAst(ast.right)
+
+      if(isinstance(l,Const) and isinstance(r,Const)):
+        return Const(l.value+r.value)
+
       newTmp = Name('tmp '+`self.tmp`)
       self.flat.append(Assign(newTmp, Add((l,r))))
       self.tmp += 1
@@ -55,7 +59,10 @@ class flatParser:
       self.tmp += 1
       return newTmp
     elif isinstance(ast,CallFunc):
-      return ast
+      newTmp = Name('tmp '+`self.tmp`)
+      self.flat.append(Assign(newTmp, ast))
+      self.tmp += 1
+      return newTmp
     else:
       print "Ended"
   def printFlat(self):
@@ -69,30 +76,54 @@ class pyTo86:
     self.stackSize = stackSize*4
     self.output = ""
     self.varLookup = {}
+    self.varCounter = 4
 
-  def setStack(self):
-    self.output+=(".globl main\nmain:\n")
+  def startStack(self):
+    self.output+=("\n.globl main\nmain:\n")
     self.output+=("pushl %ebp\n")
     self.output+=("movl %esp, %ebp\n")
     self.output+=("subl $%d, %%ebp\n" % self.stackSize)
-    print self.output
+    #print self.output
 
   def convert86(self):
-    self.output+=setStack
+    #self.output+=sesetStack
     for curLine in self.flatAst:
       if isinstance(curLine, Assign):
-        self.output
-        self.output+="movl "
-      if isinstance(curLine,Add):
-        print "hi"
-  def convertLine(self,curLine):
+        if curLine.nodes not in self.varLookup:
+          self.varLookup[curLine.nodes] = self.varCounter
+          self.varCounter+=4
+        print curLine.nodes
+        print self.varLookup
+        #print self.varLookup(curLine.nodes)
+        self.convertLine(curLine.expr, self.varLookup[curLine.nodes])
+        #self.output
+        #self.output+="movl "
+        #self.varLookup[curLine.name] = self.varCounter
+        #self.varCounter += 1
+      #if isinstance(curLine,Add):
+        #print "hi"
+  def convertLine(self,curLine,pos):
     if isinstance(curLine,Add):
-      print "hi"
+      print "Add"
+    elif isinstance(curLine,Const):
+      print "const"
+      self.output+=("movl $%d,-%d(%%ebp)\n"% (curLine.value,pos) )
+    elif isinstance(curLine,Name):
+      print "Name"
+    elif isinstance(curLine,UnarySub):
+      print "Sub"
+    elif isinstance(curLine,CallFunc):
+      print "Input"
+
+  def endStack(self):
+    self.output+=("movl $0,%eax\n")
+    self.output+=("leave\n")
+    self.output+=("ret\n")
 
 
 if __name__ == "__main__":
   fout = open('test.s', 'w+')
-  inStr = "print 3+2+1"
+  inStr = "x=2"
   ast = compiler.parse(inStr)
   parser = flatParser(ast)
   print inStr, "\n"
@@ -101,4 +132,8 @@ if __name__ == "__main__":
   parser.flatAst(parser.ast)
   parser.printFlat()
   to86 = pyTo86(parser.flat,parser.tmp)
-  to86.setStack()
+  to86.startStack()
+  to86.convert86()
+  to86.endStack()
+  print to86.output
+  fout.write(to86.output)
