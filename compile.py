@@ -106,8 +106,11 @@ class pyTo86:
       self.output+=("\tmovl -%d(%%ebp),%%eax\n"% self.getAddr(curLine.name))
       self.output+=("\tmovl %%eax,-%d(%%ebp)\n"%self.getAddr(tmpName))
     elif isinstance(curLine,UnarySub):
+      self.output += self.getConstOrNameSub(curLine.expr, tmpName)
       print "Sub"
     elif isinstance(curLine,CallFunc):
+      self.output += ("\tcall input\n")
+      self.output += ("\tmovl %%eax, -%d(%%ebp)\n" % self.getAddr(tmpName))
       print "Input"
 
   def getConstOrName(self, line):
@@ -115,6 +118,12 @@ class pyTo86:
       return "-%d(%%ebp)" % self.getAddr(line.name)
     else:
       return "$%d" % line.value
+
+  def getConstOrNameSub(self, line, tmpName):
+    if isinstance(line, Name):
+      return "\tmovl -%d(%%ebp), %%eax\n\tnegl %%eax\n\tmovl %%eax, -%d(%%ebp)\n" % (self.getAddr(line.name), self.getAddr(tmpName))
+    else:
+      return "\tmovl $-%d, -%d(%%ebp)\n" % (line.value, self.getAddr(tmpName))
 
   def getAddr(self,varName):
     print varName
@@ -132,7 +141,7 @@ class pyTo86:
 if __name__ == "__main__":
   fout = open('test.s', 'w+')
   # inStr = "x=2\ny=x\nx=4"
-  inStr = "x = input() + 1 + 2"
+  inStr = "x = input()"
   ast = compiler.parse(inStr)
   parser = flatParser(ast)
   print inStr, "\n"
