@@ -79,51 +79,50 @@ class pyTo86:
     self.varCounter = 4
 
   def startStack(self):
-    self.output+=("\n.globl main\nmain:\n")
-    self.output+=("pushl %ebp\n")
-    self.output+=("movl %esp, %ebp\n")
-    self.output+=("subl $%d, %%ebp\n" % self.stackSize)
+    self.output+=(".globl main\nmain:\n")
+    self.output+=("\tpushl %ebp\n")
+    self.output+=("\tmovl %esp, %ebp\n")
+    self.output+=("\tsubl $%d, %%esp\n" % self.stackSize)
     #print self.output
 
   def convert86(self):
-    #self.output+=sesetStack
     for curLine in self.flatAst:
       if isinstance(curLine, Assign):
-        if curLine.nodes not in self.varLookup:
-          self.varLookup[curLine.nodes] = self.varCounter
-          self.varCounter+=4
-        print curLine.nodes
-        print self.varLookup
-        #print self.varLookup(curLine.nodes)
-        self.convertLine(curLine.expr, self.varLookup[curLine.nodes])
+        print curLine.nodes.name
+        self.convertLine(curLine.expr, curLine.nodes.name)
         #self.output
         #self.output+="movl "
         #self.varLookup[curLine.name] = self.varCounter
         #self.varCounter += 1
-      #if isinstance(curLine,Add):
-        #print "hi"
-  def convertLine(self,curLine,pos):
+  def convertLine(self,curLine,tmpName):
     if isinstance(curLine,Add):
       print "Add"
     elif isinstance(curLine,Const):
-      print "const"
-      self.output+=("movl $%d,-%d(%%ebp)\n"% (curLine.value,pos) )
+      self.output+=("\tmovl $%d,-%d(%%ebp)\n"% (curLine.value,self.getAddr(tmpName)) )
     elif isinstance(curLine,Name):
-      print "Name"
+      self.output+=("\tmovl -%d(%%ebp),%%eax\n"% self.getAddr(curLine.name))
+      self.output+=("\tmovl %%eax,-%d(%%ebp)\n"%self.getAddr(tmpName))
     elif isinstance(curLine,UnarySub):
       print "Sub"
     elif isinstance(curLine,CallFunc):
       print "Input"
 
+  def getAddr(self,varName):
+    print varName
+    if varName not in self.varLookup:
+      self.varLookup[varName] = self.varCounter
+      self.varCounter+=4
+    return self.varLookup[varName]
+
   def endStack(self):
-    self.output+=("movl $0,%eax\n")
-    self.output+=("leave\n")
-    self.output+=("ret\n")
+    self.output+=("\tmovl $0,%eax\n")
+    self.output+=("\tleave\n")
+    self.output+=("\tret\n")
 
 
 if __name__ == "__main__":
   fout = open('test.s', 'w+')
-  inStr = "x=2"
+  inStr = "x=2\ny=x\nx=4"
   ast = compiler.parse(inStr)
   parser = flatParser(ast)
   print inStr, "\n"
@@ -135,5 +134,6 @@ if __name__ == "__main__":
   to86.startStack()
   to86.convert86()
   to86.endStack()
+  print "\n"
   print to86.output
   fout.write(to86.output)
