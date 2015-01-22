@@ -94,6 +94,10 @@ class pyTo86:
         #self.output+="movl "
         #self.varLookup[curLine.name] = self.varCounter
         #self.varCounter += 1
+      elif isinstance(curLine, Printnl):
+        self.output += self.getConstOrNamePrint(curLine.nodes[0])
+        self.output += ("\tpushl %eax\n\tcall print_int_nl\n")
+
   def convertLine(self,curLine,tmpName):
     if isinstance(curLine,Add):
       self.output += ("\tmovl %s, %%eax\n" % self.getConstOrName(curLine.left))
@@ -125,6 +129,12 @@ class pyTo86:
     else:
       return "\tmovl $-%d, -%d(%%ebp)\n" % (line.value, self.getAddr(tmpName))
 
+  def getConstOrNamePrint(self, line):
+    if isinstance(line, Name):
+      return "\tmovl -%d(%%ebp), %%eax\n" % self.getAddr(line.name)
+    else:
+      return "\tmovl $%d, %%eax" % line.value
+
   def getAddr(self,varName):
     print varName
     if varName not in self.varLookup:
@@ -141,7 +151,7 @@ class pyTo86:
 if __name__ == "__main__":
   fout = open('test.s', 'w+')
   # inStr = "x=2\ny=x\nx=4"
-  inStr = "x = input()"
+  inStr = "x = input()\nprint x"
   ast = compiler.parse(inStr)
   parser = flatParser(ast)
   print inStr, "\n"
