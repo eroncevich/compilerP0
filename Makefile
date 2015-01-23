@@ -1,8 +1,5 @@
 CFLG= -Wall
-all: runtime.a test
-
-runtime.a: runtime.o hashtable.o hashtable_itr.o hashtable_utility.o
-	ar -rcs $@ $^
+all: test
 
 clean:
 	rm -f $(EXE) *.o *.a
@@ -16,5 +13,5 @@ hashtable_itr.o: runtime/hashtable_itr.c runtime/hashtable_itr.h
 hashtable_utility.o: runtime/hashtable_utility.c runtime/hashtable_utility.h
 	gcc -c $(CFLG) $< -m32
 
-test: test.s runtime.a
-	gcc test.s runtime.a -m32 -lm -o test
+test: test.s runtime.o hashtable.o hashtable_itr.o hashtable_utility.o
+	gcc test.s runtime.o hashtable.o hashtable_itr.o hashtable_utility.o -m32 -lm -o test

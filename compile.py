@@ -11,7 +11,7 @@ class flatParser:
 
   def flatAst(self, ast):
     if isinstance(ast,Module):
-      print "Module"
+      #print "Module"
       # return Module(None, flatAst(ast.node))
       self.flatAst(ast.node)
     elif isinstance(ast,Stmt):
@@ -80,7 +80,6 @@ class pyTo86:
     self.output+=("\tpushl %ebp\n")
     self.output+=("\tmovl %esp, %ebp\n")
     self.output+=("\tsubl $%d, %%esp\n" % self.stackSize)
-    #print self.output
 
   def convert86(self):
     for curLine in self.flatAst:
@@ -143,17 +142,17 @@ if __name__ == "__main__":
 
   ast = compiler.parse(inStr)
   parser = flatParser(ast)
-  print inStr, "\n"
-  print ast
+  #print inStr, "\n"
+  #print ast
 
   parser.flatAst(parser.ast)
-  parser.printFlat()
+  #parser.printFlat()
   to86 = pyTo86(parser.flat,parser.tmp)
   to86.startStack()
   to86.convert86()
   to86.endStack()
-  print "\n"
-  print to86.output
+  #print "\n"
+  #print to86.output
   outFileName = sys.argv[1].replace('.py','.s')
   fout = open(outFileName, 'w+')
   fout.write(to86.output)
