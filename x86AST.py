@@ -55,7 +55,7 @@ class Register(Node):
     def __init__(self, name):
         self.name = name
     def __repr__(self):
-        return "Register(%d)" % self.name
+        return "Register(%%%s)" % self.name
     def __str__(self):
         return "%%%s" % self.name
 
@@ -78,10 +78,10 @@ class BinaryInstruction(Node):
         return "%s %s, %s" % (self.name, str(self.src), str(self.dest))
 
 class UnaryInstruction(Node):
-    def __init__(self, name, dest):
+    def __init__(self, name, param):
         self.name = name
-        self.dest = dest
+        self.param = param
     def __repr__(self):
-        return "UnaryInstruction(%s, %s)" % (self.name, repr(self.dest))
+        return "UnaryInstruction(%s, %s)" % (self.name, repr(self.param))
     def __str__(self):
-        return "%s %s" % (self.name, str(self.dest))
+        return "%s %s" % (self.name, str(self.param))
