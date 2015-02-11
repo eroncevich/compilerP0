@@ -1,44 +1,3 @@
-# class Module(Node):
-#     def __init__(self, doc, node):
-#         self.doc = doc
-#         self.node = node
-
-# class Stmt(Node):
-#     def __init__(self, nodes):
-#         self.nodes = nodes
-# class Printnl(Node):
-#     def __init__(self, nodes, dest):
-#         self.nodes = nodes
-#         self.dest = dest
-# class Assign(Node):
-#     def __init__(self, nodes, expr):
-#         self.nodes = nodes
-#         self.expr = expr
-# class AssName(Node):
-#     def __init__(self, name, flags):
-#         self.name = name
-#         self.flags = flags
-# class Discard(Node):
-#     def __init__(self, expr):
-#         self.expr = expr
-# class Const(Node):
-#     def __init__(self, value):
-#         self.value = value
-# class Name(Node):
-#     def __init__(self, name):
-#         self.name = name
-# class Add(Node):
-#     def __init__(self, (left, right)):
-#         self.left = left
-#         self.right = right
-# class UnarySub(Node):
-#     def __init__(self, expr):
-#         self.expr = expr
-# class CallFunc(Node):
-#     def __init__(self, node, args):
-#         self.node = node
-#         self.args = args
-
 class Node(object):
     def __init__(self):
         pass
@@ -74,6 +33,14 @@ class FuncOp(Node):
         return "FuncOp(%s)" % self.name
     def __str__(self):
         return "call %s" % self.name
+
+class PrintOp(Node):
+    def __init__(self, name):
+        self.name = name
+    def __repr__(self):
+        return "PrintOp(%s)" % self.name
+    def __str__(self):
+        return "print %s" % self.name
 
 class BinaryOp(Node):
     def __init__(self, name, src, dest):

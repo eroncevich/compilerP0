@@ -88,40 +88,24 @@ class pyTo86:
       if isinstance(curLine, Assign):
         self.convertLine(curLine.expr, curLine.nodes.name)
       elif isinstance(curLine, Printnl):
-        print "hi"
+        #print curLine.nodes[0]
+        self.output.append(PrintOp(self.getConstOrName(curLine.nodes[0])))
         #self.output += self.getConstOrNamePrint(curLine.nodes[0])
         ##self.output += ("\tmovl %s, %%eax\n" % self.getConstOrName(curLine.nodes[0]))
         ##self.output += ("\tpushl %eax\n\tcall print_int_nl\n\tpopl %eax\n")
 
   def convertLine(self,curLine,tmpName):
     if isinstance(curLine,Add):
-      #movl left , reg
-      #add right, reg
       self.output.append(BinaryOp("movl", self.getConstOrName(curLine.left), NameOp(tmpName)))
       self.output.append(BinaryOp("addl", self.getConstOrName(curLine.right), NameOp(tmpName)))
-      #self.output.append(BinaryOp("movl",  NameOp("tmp %d" % self.stackSize), NameOp(tmpName)))
     elif isinstance(curLine, Const):
-      self.output.append(BinaryOp("movl", ConstOp(curLine.value), MemOp(self.getAddr(tmpName))))
+      self.output.append(BinaryOp("movl", ConstOp(curLine.value), NameOp(tmpName)))
     elif isinstance(curLine, Name):
       self.output.append(BinaryOp("movl", NameOp(curLine.name), NameOp(tmpName)))
     elif isinstance(curLine, UnarySub):
       self.output.append(self.getConstOrNameSub(curLine.expr,tmpName))
     elif isinstance(curLine, CallFunc):
       self.output.append(FuncOp("input"))
-    # if isinstance(curLine,Add):
-    #   self.output += ("\tmovl %s, %%eax\n" % self.getConstOrName(curLine.left))
-    #   self.output += ("\taddl %s, %%eax\n" % self.getConstOrName(curLine.right))
-    #   self.output += ("\tmovl %%eax, -%d(%%ebp)\n" % self.getAddr(tmpName))
-    # elif isinstance(curLine,Const):
-    #   self.output+=("\tmovl $%d,-%d(%%ebp)\n"% (curLine.value,self.getAddr(tmpName)) )
-    # elif isinstance(curLine,Name):
-    #   self.output+=("\tmovl -%d(%%ebp),%%eax\n"% self.getAddr(curLine.name))
-    #   self.output+=("\tmovl %%eax,-%d(%%ebp)\n"%self.getAddr(tmpName))
-    # elif isinstance(curLine,UnarySub):
-    #   self.output += self.getConstOrNameSub(curLine.expr, tmpName)
-    # elif isinstance(curLine,CallFunc):
-    #   self.output += ("\tcall input\n")
-    #   self.output += ("\tmovl %%eax, -%d(%%ebp)\n" % self.getAddr(tmpName))
 
   def getConstOrName(self, line):
     if isinstance(line, Name):
