@@ -60,3 +60,20 @@ class UnaryOp(Node):
         return "UnaryOp(%s, %s)" % (self.name, repr(self.param))
     def __str__(self):
         return "%s %s" % (self.name, str(self.param))
+
+class InterferenceGraph:
+  def __init__(self):
+    self.active = {}
+  def createGraph(self, x86code):
+    for line in reversed(x86code):
+      if isinstance(line,BinaryOp):
+        if line.name == "movl":
+          self.active[line.src] = True
+          self.active[line.dest] = False
+        elif line.name == "addl":
+          self.active[line.src] = True
+          self.active[line.dest] = True
+      if isinstance(line,UnaryOp):
+        if line.name == "negl":
+          self.active[line.param] = True
+    print self.active
