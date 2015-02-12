@@ -158,6 +158,8 @@ if __name__ == "__main__":
   for line in to86.output:
     print line
   print to86.output
+  graph = InterferenceGraph()
+  graph.createLiveness(to86.output)
   outFileName = sys.argv[1].replace('.py','.s')
   fout = open(outFileName, 'w+')
   #fout.write(to86.output)

@@ -1,3 +1,5 @@
+from sets import Set
+
 class Node(object):
     def __init__(self):
         pass
@@ -64,6 +66,7 @@ class UnaryOp(Node):
 class InterferenceGraph:
   def __init__(self):
     self.active = {}
+    self.live = [Set()]
   def createGraph(self, x86code):
     for line in reversed(x86code):
       if isinstance(line,BinaryOp):
@@ -77,3 +80,30 @@ class InterferenceGraph:
         if line.name == "negl":
           self.active[line.param] = True
     print self.active
+
+  def createLiveness(self, x86code):
+    count = 0
+    for line in reversed(x86code):
+        self.live.append(self.live[count].copy())
+        count += 1
+        if isinstance(line, BinaryOp):
+            if line.name == "addl":
+                if isinstance(line.src, NameOp):
+                    self.live[count].add(line.src.name)
+                if isinstance(line.dest, NameOp):
+                    self.live[count].add(line.dest.name)
+            if line.name == "movl":
+                if isinstance(line.src, NameOp):
+                    self.live[count].add(line.src.name)
+                if isinstance(line.dest, NameOp):
+                    self.live[count] = self.live[count] - Set([line.dest.name])
+        if isinstance(line, UnaryOp):
+            if line.name == "negl":
+                if isinstance(line.param, NameOp):
+                    self.live[count].add(line.param.name)
+        if isinstance(line, PrintOp):
+            if isinstance(line.name, NameOp):
+                self.live[count].add(line.name.name)
+    return self.live.reverse()
+
+
