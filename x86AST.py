@@ -1,5 +1,6 @@
 from sets import Set
 
+
 class Node(object):
     def __init__(self):
         pass
@@ -67,19 +68,7 @@ class InterferenceGraph:
   def __init__(self):
     self.active = {}
     self.live = [Set()]
-  def createGraph(self, x86code):
-    for line in reversed(x86code):
-      if isinstance(line,BinaryOp):
-        if line.name == "movl":
-          self.active[line.src] = True
-          self.active[line.dest] = False
-        elif line.name == "addl":
-          self.active[line.src] = True
-          self.active[line.dest] = True
-      if isinstance(line,UnaryOp):
-        if line.name == "negl":
-          self.active[line.param] = True
-    print self.active
+    self.names = Set()
 
   def createLiveness(self, x86code):
     count = 0
@@ -90,6 +79,7 @@ class InterferenceGraph:
             if line.name == "addl":
                 if isinstance(line.src, NameOp):
                     self.live[count].add(line.src.name)
+                    #self.names.add(line.src.name)
                 if isinstance(line.dest, NameOp):
                     self.live[count].add(line.dest.name)
             if line.name == "movl":
@@ -104,6 +94,16 @@ class InterferenceGraph:
         if isinstance(line, PrintOp):
             if isinstance(line.name, NameOp):
                 self.live[count].add(line.name.name)
-    return self.live.reverse()
+    self.live.reverse()
+    self.live = self.live[1:]
+    return self.live
 
-
+  def createInterferenceGraph(self, x86code):
+      for count in range(0,len(x86code)):
+          if isinstance(x86code[count], BinaryOp):
+              if x86code[count].name == "movl":
+                  self.active[x86code[count].dest.name].add(self.live[count][0])
+                  #create edge from u,t
+                  #create edge from t,u
+          #print x86code[count],self.live[count]
+          print self.active
