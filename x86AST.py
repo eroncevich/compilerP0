@@ -65,45 +65,57 @@ class UnaryOp(Node):
         return "%s %s" % (self.name, str(self.param))
 
 class InterferenceGraph:
-  def __init__(self):
-    self.active = {}
-    self.live = [Set()]
-    self.names = Set()
+    def __init__(self):
+        self.interference = {}
+        self.live = [Set()]
+        self.names = Set()
 
-  def createLiveness(self, x86code):
-    count = 0
-    for line in reversed(x86code):
-        self.live.append(self.live[count].copy())
-        count += 1
-        if isinstance(line, BinaryOp):
-            if line.name == "addl":
-                if isinstance(line.src, NameOp):
-                    self.live[count].add(line.src.name)
-                    #self.names.add(line.src.name)
-                if isinstance(line.dest, NameOp):
-                    self.live[count].add(line.dest.name)
-            if line.name == "movl":
-                if isinstance(line.src, NameOp):
-                    self.live[count].add(line.src.name)
-                if isinstance(line.dest, NameOp):
-                    self.live[count] = self.live[count] - Set([line.dest.name])
-        if isinstance(line, UnaryOp):
-            if line.name == "negl":
-                if isinstance(line.param, NameOp):
-                    self.live[count].add(line.param.name)
-        if isinstance(line, PrintOp):
-            if isinstance(line.name, NameOp):
-                self.live[count].add(line.name.name)
-    self.live.reverse()
-    self.live = self.live[1:]
-    return self.live
+    def createLiveness(self, x86code):
+        count = 0
+        for line in reversed(x86code):
+            self.live.append(self.live[count].copy())
+            count += 1
+            if isinstance(line, BinaryOp):
+                if line.name == "addl":
+                    if isinstance(line.src, NameOp):
+                        self.live[count].add(line.src.name)
+                        #self.names.add(line.src.name)
+                    if isinstance(line.dest, NameOp):
+                        self.live[count].add(line.dest.name)
+                if line.name == "movl":
+                    if isinstance(line.src, NameOp):
+                        self.live[count].add(line.src.name)
+                    if isinstance(line.dest, NameOp):
+                        self.live[count] = self.live[count] - Set([line.dest.name])
+            if isinstance(line, UnaryOp):
+                if line.name == "negl":
+                    if isinstance(line.param, NameOp):
+                        self.live[count].add(line.param.name)
+            if isinstance(line, PrintOp):
+                if isinstance(line.name, NameOp):
+                    self.live[count].add(line.name.name)
+        self.live.reverse()
+        self.live = self.live[1:]
+        self.createInterferenceGraph(x86code)
+        return self.live
 
-  def createInterferenceGraph(self, x86code):
-      for count in range(0,len(x86code)):
-          if isinstance(x86code[count], BinaryOp):
-              if x86code[count].name == "movl":
-                  self.active[x86code[count].dest.name].add(self.live[count][0])
-                  #create edge from u,t
-                  #create edge from t,u
-          #print x86code[count],self.live[count]
-          print self.active
+    def createInterferenceGraph(self, x86code):
+        for count in range(0,len(x86code)):
+            if isinstance(x86code[count], BinaryOp):
+                t = x86code[count].dest.name
+                s = ""
+                if isinstance(x86code[count].src, NameOp):
+                    s = x86code[count].src.name
+                if not self.interference.has_key(t):
+                    self.interference[t] = Set([])
+                for line in self.live[count:]:
+                    for var in line:
+                        if x86code[count].name == "movl":
+                            if var != t and var != s and t in line:
+                                self.interference[t].add(var)
+                        elif x86code[count].name == "addl":
+                            if var != t and t in line:
+                                self.interference[t].add(var)
+
+            #TODO: Need to add the third case (call label)
+            print self.interference
