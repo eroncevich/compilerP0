@@ -76,11 +76,16 @@ class InterferenceGraph:
         self.spillTmp = 0
         self.priority = Set()
         self.registerColors = {0:"eax", 1:"ebx", 2:"ecx", 3:"edx", 4:"esi",5:"edi"}
+        self.maxcolor=0
+        self.iterations =0
+        self.inputLookup = {}
 
     def resetGraph(self):
         self.interference = {}
         self.live = [Set()]
         self.names = Set()
+        self.maxcolor=0
+        self.inputLookup = {}
 
     def createLiveness(self, x86code):
         count = 0
@@ -109,7 +114,7 @@ class InterferenceGraph:
         self.live.reverse()
         self.live = self.live[1:]
         #print self.live
-        self.createInterferenceGraph(x86code)
+        return self.createInterferenceGraph(x86code)
         #return self.live
 
     def createInterferenceGraph(self, x86code):
@@ -125,14 +130,14 @@ class InterferenceGraph:
         self.interference['^ecx'] = Set([])
         self.interference['^edx'] = Set([])
         for count in range(0,len(x86code)):
-            print x86code[count],self.live[count]
+            #print x86code[count],self.live[count]
             if isinstance(x86code[count], BinaryOp):
                 t = x86code[count].dest.name
                 s = ""
                 if isinstance(x86code[count].src, NameOp):
                     s = x86code[count].src.name
-                #if not self.interference.has_key(t):
-                #    self.interference[t] = Set([])
+                if not self.interference.has_key(t):
+                    self.interference[t] = Set([])
                 for line in self.live[count:]:
                     for var in line:
                         if x86code[count].name == "movl":
@@ -162,8 +167,8 @@ class InterferenceGraph:
                   for r in callerSave:
                       for var in line:
                           addEdge(r,var)
-        print self.interference
-        self.colorGraph(x86code);
+        #print self.interference
+        return self.colorGraph(x86code);
 
     def colorGraph(self, x86code):
         color = {}
@@ -205,10 +210,10 @@ class InterferenceGraph:
 
 
 
-        print color
+        #print color
         #print saturation
         #print uncolored
-        self.cleanUpCrew(x86code,color)
+        return self.cleanUpCrew(x86code,color)
 
 
     def findMax(self, uncolored, saturation):
@@ -226,7 +231,7 @@ class InterferenceGraph:
         x86revision = []
         spillage = False
         x86colored = []
-        print color
+        #print color
         def getRegVal(param):
             if isinstance(param, NameOp):
                 if param.name not in color:
@@ -248,9 +253,9 @@ class InterferenceGraph:
                     newTmp = "temp %d" %self.spillTmp
                     x86revision.append(BinaryOp("movl", line.src,NameOp(newTmp)))
                     x86revision.append(BinaryOp(line.name, NameOp(newTmp), line.dest))
+                    self.priority.add(newTmp)
                     self.spillTmp +=1
                     spillage = True
-                    print "spillage:", line
                 else:
                     x86revision.append(line)
                     x86colored.append(BinaryOp(line.name, coloredSrc, coloredDest))
@@ -268,42 +273,63 @@ class InterferenceGraph:
                 print "Unnaccounted for Type"
             #x86colored.append(line)
 
-        #print x86colored
-        for line in x86colored:
-            print repr(line)
-        print "*****"
-        for line in x86revision:
-            print line
+        # print x86colored
+        # for line in x86colored:
+        #     print repr(line)
+        # print "*****"
+        # for line in x86revision:
+        #     print line
 
         if spillage:
             self.resetGraph()
-            self.createLiveness(x86revision)
+            self.iterations+=1
+            if self.iterations>3:
+                return ""
+            else:
+                return self.createLiveness(x86revision)
+
         else:
-            self.prettyPrint(x86revision,color)
+            return self.prettyPrint(x86revision,color)
+
+    def getArg(self, name,color):
+        if isinstance(name, NameOp):
+            if self.inputLookup.has_key(name.name):
+                return self.inputLookup[name.name]
+            colorid = color[name.name]
+            if colorid>5:
+                if colorid>self.maxcolor:
+                    self.maxcolor=colorid
+                return "-%d(%%ebp)"%((colorid-5)*4)
+            else:
+                return "%" + self.registerColors[colorid]
+        else:
+            return "$%d"% name.value
 
     def prettyPrint(self,x86revision,color):
-        def getArg(name):
-            if isinstance(name, NameOp):
-                colorid = color[name.name]
-                if colorid>5:
-                    return "-%d(%%ebp)"%((colorid-5)*4)
-                else:
-                    return "%" + self.registerColors[colorid]
-            else:
-                return "$%d"% name.value
-
-        inputLookup = {}
         finalString = ""
         for line in x86revision:
             if isinstance(line, FuncOp):
-                inputLookup[line.var] = 'eax'
+                self.inputLookup[line.var] = '%eax'
                 finalString+="\tpushl %eax\n\tcall input\n"
-            if isinstance(line, PrintOp):
-                arg = getArg(line.name)
-                print arg
+            elif isinstance(line, PrintOp):
+                arg = self.getArg(line.name, color)
                 finalString+="\tpushl %s\n" % arg
                 finalString+="\tcall print_int_nl\n"
                 finalString+="\tpopl %s\n" % arg
-            if isinstance(line, BinaryOp):
-                pass
-        print finalString
+            elif isinstance(line, BinaryOp):
+                finalString+="\t%s %s, %s\n" %(line.name, self.getArg(line.src, color),self.getArg(line.dest, color))
+            elif isinstance(line,UnaryOp):
+                finalString+="\t%s %s\n" %(line.name, self.getArg(line.param, color))
+
+        header=(".globl main\nmain:\n")
+        header+=("\tpushl %ebp\n")
+        header+=("\tmovl %esp, %ebp\n")
+        if self.maxcolor <6:
+            self.maxcolor = 0
+        else:
+            header+=("\tsubl $%d, %%esp\n") % ((self.maxcolor-5)*4)
+        finalString = header+finalString
+        finalString+=("\tmovl $0,%eax\n")
+        finalString+=("\tleave\n")
+        finalString+=("\tret\n")
+        return finalString

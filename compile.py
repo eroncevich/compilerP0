@@ -60,6 +60,7 @@ class flatParser:
       child = self.flatAst(ast.expr)
       if isinstance(child, Const):
         child = Const(-child.value)
+        newTmp = child
       else:
         newTmp = Name('tmp '+`self.tmp`)
         self.flat.append(Assign(newTmp, UnarySub(child)))
@@ -69,9 +70,12 @@ class flatParser:
       newTmp = Name('tmp '+`self.tmp`)
       self.flat.append(Assign(newTmp, ast))
       self.tmp += 1
-      return newTmp
+      newTmp2 = Name('tmp '+`self.tmp`)
+      self.flat.append(Assign(newTmp2, newTmp))
+      self.tmp += 1
+      return newTmp2
     else:
-      print "Ended"
+      pass
   def printFlat(self):
     print "*****Args*****"
     for args in self.flat:
@@ -158,7 +162,7 @@ if __name__ == "__main__":
   #print ast
 
   parser.flatAst(parser.ast)
-  parser.printFlat()
+  #parser.printFlat()
   to86 = pyTo86(parser.flat,parser.tmp)
   #to86.startStack()
   to86.convert86()
@@ -168,10 +172,12 @@ if __name__ == "__main__":
   #  print line
   #print to86.output
   ig = InterferenceGraph()
-  ig.createLiveness(to86.output)
+
+  output = ig.createLiveness(to86.output)
+  #output
   #igcolor = ig.colorGraph()
   #ig.cleanUpCrew(to86.output,igcolor)
 
   outFileName = sys.argv[1].replace('.py','.s')
   fout = open(outFileName, 'w+')
-  #fout.write(to86.output)
+  fout.write(output)
