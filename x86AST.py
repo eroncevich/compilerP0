@@ -97,10 +97,14 @@ class InterferenceGraph:
                     self.live[count].add(line.name.name)
         self.live.reverse()
         self.live = self.live[1:]
+        #print self.live
         self.createInterferenceGraph(x86code)
         #return self.live
 
     def createInterferenceGraph(self, x86code):
+        self.interference['^eax'] = Set([])
+        self.interference['^ecx'] = Set([])
+        self.interference['^edx'] = Set([])
         for count in range(0,len(x86code)):
             print x86code[count],self.live[count]
             if isinstance(x86code[count], BinaryOp):
@@ -119,15 +123,15 @@ class InterferenceGraph:
                             if var != t and t in line:
                                 self.interference[t].add(var)
             if isinstance(x86code[count], PrintOp):
-                if not self.interference.has_key('^eax'):
-                    self.interference['^eax'] = Set([])
-                    self.interference['^ecx'] = Set([])
-                    self.interference['^edx'] = Set([])
+                #if not self.interference.has_key('^eax'):
+
                 for line in self.live[count:]:
                     callerSave = ['^eax', '^ecx', '^edx']
                     for r in callerSave:
                         for var in line:
                             self.interference[r].add(var)
+                            if not self.interference.has_key(var):
+                                self.interference[var] = Set([])
                             self.interference[var].add(r)
             if isinstance(x86code[count], UnaryOp):
                 t = x86code[count].param.name
@@ -139,7 +143,7 @@ class InterferenceGraph:
                             self.interference[t].add(var)
 
             #TODO: Need to add the third case (call label)
-        print self.interference
+        #print self.interference
     def colorGraph(self):
         color = {}
         saturation ={}
@@ -181,8 +185,8 @@ class InterferenceGraph:
 
 
         print color
-        print saturation
-        print uncolored
+        #print saturation
+        #print uncolored
         return color
 
 
@@ -196,19 +200,30 @@ class InterferenceGraph:
         return maxNode
 
     def cleanUpCrew(self, x86code, color):
+        x86revision = []
+        spillage = False
         def getRegVal(param):
             if isinstance(param, NameOp):
                 colorId =color[param.name]
-                #if colorId<6:
-                #    return NameOp(self.registerColors[colorId])
-                #else:
+                #if colorId>5:
+                #    print "spillage"
                 return NameOp(colorId)
             elif isinstance(param, ConstOp):
                 return param
         x86colored = []
         for line in x86code:
             if isinstance(line, BinaryOp):
-                x86colored.append(BinaryOp(line.name, getRegVal(line.src), getRegVal(line.dest)))
+                coloredSrc = getRegVal(line.src)
+                coloredDest =getRegVal(line.dest)
+                if isinstance(coloredSrc, NameOp) and coloredSrc.name>5 and isinstance(coloredDest,NameOp) and coloredDest.name>5:
+                    x86revision.append(BinaryOp("movl", line.src,NameOp("tempppp")))
+                    x86revision.append(BinaryOp(line.name, NameOp("tempppp"), line.dest))
+                    spillage = True
+                    print "spillage:", line
+                else:
+                    x86revision.append(line)
+                    x86colored.append(BinaryOp(line.name, coloredSrc, coloredDest))
+                #if x86.colored[-1].src
             if isinstance(line, UnaryOp):
                 x86colored.append(UnaryOp(line.name, getRegVal(line.param)))
             if isinstance(line, PrintOp):
