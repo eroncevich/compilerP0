@@ -21,6 +21,11 @@ class flatParser:
         self.flatAst(stmt)
     elif isinstance(ast,Printnl):
       child = self.flatAst(ast.nodes[0])
+      if isinstance(child, Const):
+          newTmp = Name('tmp '+`self.tmp`)
+          self.flat.append(Assign(newTmp,child))
+          self.tmp += 1
+          child= newTmp
       self.flat.append(Printnl([child],None))
     elif isinstance(ast,Assign):
       varVal = self.flatAst(ast.expr)
@@ -92,7 +97,13 @@ class pyTo86:
         self.convertLine(curLine.expr, curLine.nodes.name)
       elif isinstance(curLine, Printnl):
         #print curLine.nodes[0]
+        #print "@@@@@@@@@@@@@@@@2"
+        #print repr(self.getConstOrName(curLine.nodes[0]))
+        #arg = self.getConstOrName(curLine.nodes[0])
+        #if isinstance(arg,Const):
+        #    self.output.append(PrintOp()
         self.output.append(PrintOp(self.getConstOrName(curLine.nodes[0])))
+
       #elif isinstance(curLine,UnarySub):
       #  if isinstance(curLine.expr, Name):
       #    self.output.append(UnaryOp("negl", NameOp(curLine.expr.name)))
@@ -111,7 +122,7 @@ class pyTo86:
       self.output.append(BinaryOp("movl", NameOp(curLine.expr.name), NameOp(tmpName)))
       self.output.append(UnaryOp("negl", NameOp(tmpName)))
     elif isinstance(curLine, CallFunc):
-      self.output.append(FuncOp("input"))
+      self.output.append(FuncOp("input", tmpName))
 
   def getConstOrName(self, line):
     if isinstance(line, Name):
@@ -158,8 +169,8 @@ if __name__ == "__main__":
   #print to86.output
   ig = InterferenceGraph()
   ig.createLiveness(to86.output)
-  igcolor = ig.colorGraph()
-  ig.cleanUpCrew(to86.output,igcolor)
+  #igcolor = ig.colorGraph()
+  #ig.cleanUpCrew(to86.output,igcolor)
 
   outFileName = sys.argv[1].replace('.py','.s')
   fout = open(outFileName, 'w+')

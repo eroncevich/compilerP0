@@ -30,10 +30,11 @@ class ConstOp(Node):
         return "$%d" % self.value
 
 class FuncOp(Node):
-    def __init__(self, name):
+    def __init__(self, name, var):
         self.name = name
+        self.var = var
     def __repr__(self):
-        return "FuncOp(%s)" % self.name
+        return "FuncOp(%s,%s)" % (self.name, self.var)
     def __str__(self):
         return "call %s" % self.name
 
@@ -41,7 +42,10 @@ class PrintOp(Node):
     def __init__(self, name):
         self.name = name
     def __repr__(self):
-        return "PrintOp(%s)" % self.name
+        if isinstance(self.name, ConstOp):
+            return "PrintOp(ConstOp(%s))" % self.name
+        elif isinstance(self.name, NameOp):
+            return "PrintOps(NameOp(%s))" % self.name
     def __str__(self):
         return "print %s" % self.name
 
@@ -69,7 +73,14 @@ class InterferenceGraph:
         self.interference = {}
         self.live = [Set()]
         self.names = Set()
-        self.registerColors = {"eax":0, "ebx":1, "ecx":2, "edx":3, "esi":4,"edi":5}
+        self.spillTmp = 0
+        self.priority = Set()
+        self.registerColors = {0:"eax", 1:"ebx", 2:"ecx", 3:"edx", 4:"esi",5:"edi"}
+
+    def resetGraph(self):
+        self.interference = {}
+        self.live = [Set()]
+        self.names = Set()
 
     def createLiveness(self, x86code):
         count = 0
@@ -102,6 +113,14 @@ class InterferenceGraph:
         #return self.live
 
     def createInterferenceGraph(self, x86code):
+        def addEdge(src,dest):
+            if not self.interference.has_key(src):
+                self.interference[src] = Set([])
+            self.interference[src].add(dest)
+            if not self.interference.has_key(dest):
+                self.interference[dest] = Set([])
+            self.interference[dest].add(src)
+
         self.interference['^eax'] = Set([])
         self.interference['^ecx'] = Set([])
         self.interference['^edx'] = Set([])
@@ -112,27 +131,22 @@ class InterferenceGraph:
                 s = ""
                 if isinstance(x86code[count].src, NameOp):
                     s = x86code[count].src.name
-                if not self.interference.has_key(t):
-                    self.interference[t] = Set([])
+                #if not self.interference.has_key(t):
+                #    self.interference[t] = Set([])
                 for line in self.live[count:]:
                     for var in line:
                         if x86code[count].name == "movl":
                             if var != t and var != s and t in line:
-                                self.interference[t].add(var)
+                                addEdge(t,var)
                         elif x86code[count].name == "addl":
                             if var != t and t in line:
-                                self.interference[t].add(var)
+                                addEdge(t,var)
             if isinstance(x86code[count], PrintOp):
-                #if not self.interference.has_key('^eax'):
-
                 for line in self.live[count:]:
                     callerSave = ['^eax', '^ecx', '^edx']
                     for r in callerSave:
                         for var in line:
-                            self.interference[r].add(var)
-                            if not self.interference.has_key(var):
-                                self.interference[var] = Set([])
-                            self.interference[var].add(r)
+                            addEdge(r,var)
             if isinstance(x86code[count], UnaryOp):
                 t = x86code[count].param.name
                 if not self.interference.has_key(t):
@@ -140,11 +154,18 @@ class InterferenceGraph:
                 for line in self.live[count:]:
                     for var in line:
                         if var!= t and t in line:
-                            self.interference[t].add(var)
+                            addEdge(t,var)
 
-            #TODO: Need to add the third case (call label)
-        #print self.interference
-    def colorGraph(self):
+            if isinstance(x86code[count], FuncOp): #need to check
+              for line in self.live[count:]:
+                  callerSave = ['^eax', '^ecx', '^edx']
+                  for r in callerSave:
+                      for var in line:
+                          addEdge(r,var)
+        print self.interference
+        self.colorGraph(x86code);
+
+    def colorGraph(self, x86code):
         color = {}
         saturation ={}
         color["^eax"]= 0
@@ -160,7 +181,7 @@ class InterferenceGraph:
         for node in self.interference:
             if node[0]!='^':
                 uncolored.add(node)
-
+        #print "uncolored", uncolored
         while len(uncolored):
             curNode = self.findMax(uncolored,saturation)
 
@@ -187,13 +208,15 @@ class InterferenceGraph:
         print color
         #print saturation
         #print uncolored
-        return color
+        self.cleanUpCrew(x86code,color)
 
 
     def findMax(self, uncolored, saturation):
         maxSat = 0
         maxNode = list(uncolored)[0]
         for node in uncolored:
+            if node in self.priority:
+                return node
             if saturation[node]>maxSat:
                 maxSat = saturation[node]
                 maxNode = node
@@ -202,31 +225,85 @@ class InterferenceGraph:
     def cleanUpCrew(self, x86code, color):
         x86revision = []
         spillage = False
+        x86colored = []
+        print color
         def getRegVal(param):
             if isinstance(param, NameOp):
+                if param.name not in color:
+                    return -1
                 colorId =color[param.name]
                 #if colorId>5:
                 #    print "spillage"
                 return NameOp(colorId)
             elif isinstance(param, ConstOp):
                 return param
-        x86colored = []
+
         for line in x86code:
             if isinstance(line, BinaryOp):
                 coloredSrc = getRegVal(line.src)
                 coloredDest =getRegVal(line.dest)
+                if coloredDest==-1: #removed useless unreferenced variables
+                    continue
                 if isinstance(coloredSrc, NameOp) and coloredSrc.name>5 and isinstance(coloredDest,NameOp) and coloredDest.name>5:
-                    x86revision.append(BinaryOp("movl", line.src,NameOp("tempppp")))
-                    x86revision.append(BinaryOp(line.name, NameOp("tempppp"), line.dest))
+                    newTmp = "temp %d" %self.spillTmp
+                    x86revision.append(BinaryOp("movl", line.src,NameOp(newTmp)))
+                    x86revision.append(BinaryOp(line.name, NameOp(newTmp), line.dest))
+                    self.spillTmp +=1
                     spillage = True
                     print "spillage:", line
                 else:
                     x86revision.append(line)
                     x86colored.append(BinaryOp(line.name, coloredSrc, coloredDest))
                 #if x86.colored[-1].src
-            if isinstance(line, UnaryOp):
+            elif isinstance(line, UnaryOp):
+                x86revision.append(line)
                 x86colored.append(UnaryOp(line.name, getRegVal(line.param)))
-            if isinstance(line, PrintOp):
-                pass
+            elif isinstance(line, PrintOp):
+                x86revision.append(line)
+                x86colored.append(PrintOp(getRegVal(line.name)))
+            elif isinstance(line, FuncOp):
+                x86revision.append(line)
+                x86colored.append(FuncOp("input", line.var))
+            else:
+                print "Unnaccounted for Type"
             #x86colored.append(line)
-        print x86colored
+
+        #print x86colored
+        for line in x86colored:
+            print repr(line)
+        print "*****"
+        for line in x86revision:
+            print line
+
+        if spillage:
+            self.resetGraph()
+            self.createLiveness(x86revision)
+        else:
+            self.prettyPrint(x86revision,color)
+
+    def prettyPrint(self,x86revision,color):
+        def getArg(name):
+            if isinstance(name, NameOp):
+                colorid = color[name.name]
+                if colorid>5:
+                    return "-%d(%%ebp)"%((colorid-5)*4)
+                else:
+                    return "%" + self.registerColors[colorid]
+            else:
+                return "$%d"% name.value
+
+        inputLookup = {}
+        finalString = ""
+        for line in x86revision:
+            if isinstance(line, FuncOp):
+                inputLookup[line.var] = 'eax'
+                finalString+="\tpushl %eax\n\tcall input\n"
+            if isinstance(line, PrintOp):
+                arg = getArg(line.name)
+                print arg
+                finalString+="\tpushl %s\n" % arg
+                finalString+="\tcall print_int_nl\n"
+                finalString+="\tpopl %s\n" % arg
+            if isinstance(line, BinaryOp):
+                pass
+        print finalString
