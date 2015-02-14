@@ -53,9 +53,12 @@ class flatParser:
 
     elif isinstance(ast,UnarySub):
       child = self.flatAst(ast.expr)
-      newTmp = Name('tmp '+`self.tmp`)
-      self.flat.append(Assign(newTmp, UnarySub(child)))
-      self.tmp += 1
+      if isinstance(child, Const):
+        child = Const(-child.value)
+      else:
+        newTmp = Name('tmp '+`self.tmp`)
+        self.flat.append(Assign(newTmp, UnarySub(child)))
+        self.tmp += 1
       return newTmp
     elif isinstance(ast,CallFunc):
       newTmp = Name('tmp '+`self.tmp`)
@@ -90,9 +93,11 @@ class pyTo86:
       elif isinstance(curLine, Printnl):
         #print curLine.nodes[0]
         self.output.append(PrintOp(self.getConstOrName(curLine.nodes[0])))
-        #self.output += self.getConstOrNamePrint(curLine.nodes[0])
-        ##self.output += ("\tmovl %s, %%eax\n" % self.getConstOrName(curLine.nodes[0]))
-        ##self.output += ("\tpushl %eax\n\tcall print_int_nl\n\tpopl %eax\n")
+      #elif isinstance(curLine,UnarySub):
+      #  if isinstance(curLine.expr, Name):
+      #    self.output.append(UnaryOp("negl", NameOp(curLine.expr.name)))
+      #  else:
+      #    pass
 
   def convertLine(self,curLine,tmpName):
     if isinstance(curLine,Add):
@@ -103,7 +108,8 @@ class pyTo86:
     elif isinstance(curLine, Name):
       self.output.append(BinaryOp("movl", NameOp(curLine.name), NameOp(tmpName)))
     elif isinstance(curLine, UnarySub):
-      self.output.append(self.getConstOrNameSub(curLine.expr,tmpName))
+      self.output.append(BinaryOp("movl", NameOp(curLine.expr.name), NameOp(tmpName)))
+      self.output.append(UnaryOp("negl", NameOp(tmpName)))
     elif isinstance(curLine, CallFunc):
       self.output.append(FuncOp("input"))
 
@@ -112,14 +118,6 @@ class pyTo86:
       return  NameOp(line.name)
     else:
       return ConstOp(line.value)
-
-  def getConstOrNameSub(self, line, tmpName):
-    if isinstance(line, Name):
-      return UnaryOp("negl", NameOp(line.name))
-      #return "\tmovl -%d(%%ebp), %%eax\n\tnegl %%eax\n\tmovl %%eax, -%d(%%ebp)\n" % (self.getAddr(line.name), self.getAddr(tmpName))
-    else:
-      return BinaryOp("movl", ConstOp(-line.value), NameOp(tmpName))
-      #return "\tmovl $-%d, -%d(%%ebp)\n" % (line.value, self.getAddr(tmpName))
 
   def getConstOrNamePrint(self, line):
     if isinstance(line, Name):
@@ -155,11 +153,14 @@ if __name__ == "__main__":
   to86.convert86()
   #to86.endStack()
   #print "\n"
-  for line in to86.output:
-    print line
-  print to86.output
-  graph = InterferenceGraph()
-  graph.createLiveness(to86.output)
+  #for line in to86.output:
+  #  print line
+  #print to86.output
+  ig = InterferenceGraph()
+  ig.createLiveness(to86.output)
+
+
+
   outFileName = sys.argv[1].replace('.py','.s')
   fout = open(outFileName, 'w+')
   #fout.write(to86.output)

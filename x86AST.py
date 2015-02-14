@@ -97,10 +97,11 @@ class InterferenceGraph:
         self.live.reverse()
         self.live = self.live[1:]
         self.createInterferenceGraph(x86code)
-        return self.live
+        #return self.live
 
     def createInterferenceGraph(self, x86code):
         for count in range(0,len(x86code)):
+            print x86code[count],self.live[count]
             if isinstance(x86code[count], BinaryOp):
                 t = x86code[count].dest.name
                 s = ""
@@ -116,6 +117,24 @@ class InterferenceGraph:
                         elif x86code[count].name == "addl":
                             if var != t and t in line:
                                 self.interference[t].add(var)
+            if isinstance(x86code[count], PrintOp):
+                if not self.interference.has_key('^eax'):
+                    self.interference['^eax'] = Set([])
+                    self.interference['^ecx'] = Set([])
+                    self.interference['^edx'] = Set([])
+                for line in self.live[count:]:
+                    callerSave = ['^eax', '^ecx', '^edx']
+                    for r in callerSave:
+                        for var in line:
+                            self.interference[r].add(var)
+            if isinstance(x86code[count], UnaryOp):
+                t = x86code[count].param.name
+                if not self.interference.has_key(t):
+                    self.interference[t] = Set([])
+                for line in self.live[count:]:
+                    for var in line:
+                        if var!= t and t in line:
+                            self.interference[t].add(var)
 
             #TODO: Need to add the third case (call label)
-            print self.interference
+        print self.interference
