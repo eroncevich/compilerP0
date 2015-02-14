@@ -158,8 +158,8 @@ if __name__ == "__main__":
   #print to86.output
   ig = InterferenceGraph()
   ig.createLiveness(to86.output)
-
-
+  igcolor = ig.colorGraph()
+  ig.cleanUpCrew(to86.output,igcolor)
 
   outFileName = sys.argv[1].replace('.py','.s')
   fout = open(outFileName, 'w+')

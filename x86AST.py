@@ -183,6 +183,7 @@ class InterferenceGraph:
         print color
         print saturation
         print uncolored
+        return color
 
 
     def findMax(self, uncolored, saturation):
@@ -194,8 +195,23 @@ class InterferenceGraph:
                 maxNode = node
         return maxNode
 
-            #    for
-
-
-
-        #for node in uncolored:
+    def cleanUpCrew(self, x86code, color):
+        def getRegVal(param):
+            if isinstance(param, NameOp):
+                colorId =color[param.name]
+                #if colorId<6:
+                #    return NameOp(self.registerColors[colorId])
+                #else:
+                return NameOp(colorId)
+            elif isinstance(param, ConstOp):
+                return param
+        x86colored = []
+        for line in x86code:
+            if isinstance(line, BinaryOp):
+                x86colored.append(BinaryOp(line.name, getRegVal(line.src), getRegVal(line.dest)))
+            if isinstance(line, UnaryOp):
+                x86colored.append(UnaryOp(line.name, getRegVal(line.param)))
+            if isinstance(line, PrintOp):
+                pass
+            #x86colored.append(line)
+        print x86colored
