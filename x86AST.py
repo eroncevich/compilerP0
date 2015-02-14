@@ -69,6 +69,7 @@ class InterferenceGraph:
         self.interference = {}
         self.live = [Set()]
         self.names = Set()
+        self.registerColors = {"eax":0, "ebx":1, "ecx":2, "edx":3, "esi":4,"edi":5}
 
     def createLiveness(self, x86code):
         count = 0
@@ -127,6 +128,7 @@ class InterferenceGraph:
                     for r in callerSave:
                         for var in line:
                             self.interference[r].add(var)
+                            self.interference[var].add(r)
             if isinstance(x86code[count], UnaryOp):
                 t = x86code[count].param.name
                 if not self.interference.has_key(t):
@@ -138,3 +140,62 @@ class InterferenceGraph:
 
             #TODO: Need to add the third case (call label)
         print self.interference
+    def colorGraph(self):
+        color = {}
+        saturation ={}
+        color["^eax"]= 0
+        color["^ecx"] = 2
+        color["^edx"] = 3
+        for node in self.interference:
+            saturation[node] = 0
+        for c in color:
+            for node in self.interference[c]:
+                saturation[node]+=1
+
+        uncolored = Set()
+        for node in self.interference:
+            if node[0]!='^':
+                uncolored.add(node)
+
+        while len(uncolored):
+            curNode = self.findMax(uncolored,saturation)
+
+            neighbors = self.interference[curNode]
+            sortedNeighbors = map(lambda e: color[e] if color.has_key(e) else -1, neighbors)
+            sortedNeighbors.sort()
+            #print sortedNeighbors
+
+            while len(sortedNeighbors) > 0 and sortedNeighbors[0] == -1:
+                sortedNeighbors = sortedNeighbors[1:]
+            counter = 0
+            for el in sortedNeighbors:
+                if counter == el:
+                    counter+=1
+                elif counter< el:
+                    break
+            color[curNode] = counter
+            for node in self.interference[curNode]:
+                saturation[node]+=1
+            uncolored.remove(curNode)
+
+
+
+        print color
+        print saturation
+        print uncolored
+
+
+    def findMax(self, uncolored, saturation):
+        maxSat = 0
+        maxNode = list(uncolored)[0]
+        for node in uncolored:
+            if saturation[node]>maxSat:
+                maxSat = saturation[node]
+                maxNode = node
+        return maxNode
+
+            #    for
+
+
+
+        #for node in uncolored:
