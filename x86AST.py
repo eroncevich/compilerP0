@@ -113,14 +113,14 @@ class InterferenceGraph:
                     self.live[count].add(line.name.name)
         self.live.reverse()
         self.live = self.live[1:]
-        #print self.live
+        #print "liveness"
         return self.createInterferenceGraph(x86code)
         #return self.live
 
     def createInterferenceGraph(self, x86code):
         def addEdge(src,dest):
-            if not self.interference.has_key(src):
-                self.interference[src] = Set([])
+            #if not self.interference.has_key(src):
+            #    self.interference[src] = Set([])
             self.interference[src].add(dest)
             if not self.interference.has_key(dest):
                 self.interference[dest] = Set([])
@@ -129,48 +129,61 @@ class InterferenceGraph:
         self.interference['^eax'] = Set([])
         self.interference['^ecx'] = Set([])
         self.interference['^edx'] = Set([])
-        for count in range(0,len(x86code)):
+        somelen = len(x86code)
+        for count in range(0,somelen):
+            #print "0"
             #print x86code[count],self.live[count]
             if isinstance(x86code[count], BinaryOp):
+
                 t = x86code[count].dest.name
                 s = ""
                 if isinstance(x86code[count].src, NameOp):
                     s = x86code[count].src.name
                 if not self.interference.has_key(t):
                     self.interference[t] = Set([])
-                for line in self.live[count:]:
-                    for var in line:
-                        if x86code[count].name == "movl":
-                            if var != t and var != s and t in line:
-                                addEdge(t,var)
-                        elif x86code[count].name == "addl":
-                            if var != t and t in line:
-                                addEdge(t,var)
+                #line = self.live[count]
+                for var in self.live[count]:
+                    if x86code[count].name == "movl":
+                        if var != t and var != s:# and t in line:
+                            addEdge(t,var)
+                    elif x86code[count].name == "addl":
+                        if var != t and t:# in line:
+                            addEdge(t,var)
+
             if isinstance(x86code[count], PrintOp):
-                for line in self.live[count:]:
-                    callerSave = ['^eax', '^ecx', '^edx']
-                    for r in callerSave:
-                        for var in line:
-                            addEdge(r,var)
+                #for line in self.live[count:]:
+                #print x86code[count], self.live[count]
+                callerSave = ['^eax', '^ecx', '^edx']
+                for r in callerSave:
+                    addEdge(x86code[count].name.name,r)
+                    for var in self.live[count]:
+                        addEdge(r,var)
             if isinstance(x86code[count], UnaryOp):
+                #print"2"
                 t = x86code[count].param.name
                 if not self.interference.has_key(t):
                     self.interference[t] = Set([])
-                for line in self.live[count:]:
-                    for var in line:
-                        if var!= t and t in line:
-                            addEdge(t,var)
-
+                #for line in self.live[count:]:
+                for var in self.live[count]:
+                    if var!= t:
+                        addEdge(t,var)
+                #print"3"
             if isinstance(x86code[count], FuncOp): #need to check
-              for line in self.live[count:]:
-                  callerSave = ['^eax', '^ecx', '^edx']
-                  for r in callerSave:
-                      for var in line:
-                          addEdge(r,var)
+                #print "2"
+
+                #for line in self.live[count:]:
+                callerSave = ['^eax', '^ecx', '^edx']
+                for r in callerSave:
+                    for var in self.live[count]:
+                        addEdge(r,var)
+              #print "3"
+            #print "1"
         #print self.interference
+        #print "interference"
         return self.colorGraph(x86code);
 
     def colorGraph(self, x86code):
+        #print self.interference
         color = {}
         saturation ={}
         color["^eax"]= 0
@@ -184,6 +197,7 @@ class InterferenceGraph:
 
         uncolored = Set()
         for node in self.interference:
+            #print node
             if node[0]!='^':
                 uncolored.add(node)
         #print "uncolored", uncolored
@@ -191,19 +205,35 @@ class InterferenceGraph:
             curNode = self.findMax(uncolored,saturation)
 
             neighbors = self.interference[curNode]
-            sortedNeighbors = map(lambda e: color[e] if color.has_key(e) else -1, neighbors)
-            sortedNeighbors.sort()
-            #print sortedNeighbors
+            #print neighbors
 
-            while len(sortedNeighbors) > 0 and sortedNeighbors[0] == -1:
-                sortedNeighbors = sortedNeighbors[1:]
-            counter = 0
-            for el in sortedNeighbors:
-                if counter == el:
-                    counter+=1
-                elif counter< el:
-                    break
-            color[curNode] = counter
+            sortedNeighbors = map(lambda e: color[e] if color.has_key(e) else -1, neighbors)
+            #sortedNeighbors.sort()
+            if len(sortedNeighbors)==0:
+                color[curNode]=0
+            else:
+                coolList = [0]*(max(sortedNeighbors)+1+1)
+                for el in sortedNeighbors:
+
+                    if el>-1:
+                        coolList[el]=1
+                for i in range(0, len(coolList)):
+                    if coolList[i]==0:
+                        color[curNode] = i
+                        break
+            #print color[curNode]
+
+
+
+            #while len(sortedNeighbors) > 0 and sortedNeighbors[0] == -1:
+            #    sortedNeighbors = sortedNeighbors[1:]
+            #counter = 0
+            #for el in sortedNeighbors:
+            #    if counter == el:
+            #        counter+=1
+            #    elif counter< el:
+            #        break
+            #color[curNode] = counter
             for node in self.interference[curNode]:
                 saturation[node]+=1
             uncolored.remove(curNode)
@@ -283,7 +313,7 @@ class InterferenceGraph:
         if spillage:
             self.resetGraph()
             self.iterations+=1
-            if self.iterations>3:
+            if self.iterations>8:
                 return ""
             else:
                 return self.createLiveness(x86revision)
@@ -295,6 +325,9 @@ class InterferenceGraph:
         if isinstance(name, NameOp):
             if self.inputLookup.has_key(name.name):
                 return self.inputLookup[name.name]
+            #if not color.has_key(name.name):
+            #    colorid = 0
+            #else:
             colorid = color[name.name]
             if colorid>5:
                 if colorid>self.maxcolor:

@@ -63,7 +63,7 @@ class flatParser:
         newTmp = child
       else:
         newTmp = Name('tmp '+`self.tmp`)
-        self.flat.append(Assign(newTmp, UnarySub(child)))
+        self.flat.append(Assign(newTmp,UnarySub(child)))
         self.tmp += 1
       return newTmp
     elif isinstance(ast,CallFunc):
@@ -107,6 +107,8 @@ class pyTo86:
         #if isinstance(arg,Const):
         #    self.output.append(PrintOp()
         self.output.append(PrintOp(self.getConstOrName(curLine.nodes[0])))
+      elif isinstance(curLine, UnarySub):
+          self.output.append(UnaryOp("negl", NameOp(curLine.expr.name)))
 
       #elif isinstance(curLine,UnarySub):
       #  if isinstance(curLine.expr, Name):
@@ -123,6 +125,7 @@ class pyTo86:
     elif isinstance(curLine, Name):
       self.output.append(BinaryOp("movl", NameOp(curLine.name), NameOp(tmpName)))
     elif isinstance(curLine, UnarySub):
+      #print "wrong"
       self.output.append(BinaryOp("movl", NameOp(curLine.expr.name), NameOp(tmpName)))
       self.output.append(UnaryOp("negl", NameOp(tmpName)))
     elif isinstance(curLine, CallFunc):
