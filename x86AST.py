@@ -100,10 +100,10 @@ class InterferenceGraph:
                     if isinstance(line.dest, NameOp):
                         self.live[count].add(line.dest.name)
                 if line.name == "movl":
-                    if isinstance(line.src, NameOp):
-                        self.live[count].add(line.src.name)
                     if isinstance(line.dest, NameOp):
                         self.live[count] = self.live[count] - Set([line.dest.name])
+                    if isinstance(line.src, NameOp):
+                        self.live[count].add(line.src.name)
             if isinstance(line, UnaryOp):
                 if line.name == "negl":
                     if isinstance(line.param, NameOp):
@@ -111,6 +111,9 @@ class InterferenceGraph:
             if isinstance(line, PrintOp):
                 if isinstance(line.name, NameOp):
                     self.live[count].add(line.name.name)
+            if isinstance(line,FuncOp):
+                if line.name == "input":
+                    self.live[count] = self.live[count] - Set([line.var])
         self.live.reverse()
         self.live = self.live[1:]
         #print "liveness"
@@ -159,7 +162,6 @@ class InterferenceGraph:
                     for var in self.live[count]:
                         addEdge(r,var)
             if isinstance(x86code[count], UnaryOp):
-                #print"2"
                 t = x86code[count].param.name
                 if not self.interference.has_key(t):
                     self.interference[t] = Set([])
@@ -167,17 +169,11 @@ class InterferenceGraph:
                 for var in self.live[count]:
                     if var!= t:
                         addEdge(t,var)
-                #print"3"
             if isinstance(x86code[count], FuncOp): #need to check
-                #print "2"
-
-                #for line in self.live[count:]:
                 callerSave = ['^eax', '^ecx', '^edx']
                 for r in callerSave:
                     for var in self.live[count]:
                         addEdge(r,var)
-              #print "3"
-            #print "1"
         #print self.interference
         #print "interference"
         return self.colorGraph(x86code);
@@ -261,14 +257,11 @@ class InterferenceGraph:
         x86revision = []
         spillage = False
         x86colored = []
-        #print color
         def getRegVal(param):
             if isinstance(param, NameOp):
                 if param.name not in color:
                     return -1
                 colorId =color[param.name]
-                #if colorId>5:
-                #    print "spillage"
                 return NameOp(colorId)
             elif isinstance(param, ConstOp):
                 return param
@@ -304,8 +297,8 @@ class InterferenceGraph:
             #x86colored.append(line)
 
         # print x86colored
-        # for line in x86colored:
-        #     print repr(line)
+        #for line in x86colored:
+        #   print repr(line)
         # print "*****"
         # for line in x86revision:
         #     print line
@@ -350,7 +343,14 @@ class InterferenceGraph:
                 finalString+="\tcall print_int_nl\n"
                 finalString+="\tpopl %s\n" % arg
             elif isinstance(line, BinaryOp):
-                finalString+="\t%s %s, %s\n" %(line.name, self.getArg(line.src, color),self.getArg(line.dest, color))
+                leftArg = self.getArg(line.src, color)
+                rightArg = self.getArg(line.dest, color)
+                if line.name == "movl" and rightArg == leftArg:
+                    continue
+                else:
+                    #print line.src.name, line.dest
+                    finalString+="\t%s %s, %s\n" %(line.name, leftArg,rightArg)
+
             elif isinstance(line,UnaryOp):
                 finalString+="\t%s %s\n" %(line.name, self.getArg(line.param, color))
 
