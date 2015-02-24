@@ -96,7 +96,6 @@ class InterferenceGraph:
                 if line.name == "addl":
                     if isinstance(line.src, NameOp):
                         self.live[count].add(line.src.name)
-                        #self.names.add(line.src.name)
                     if isinstance(line.dest, NameOp):
                         self.live[count].add(line.dest.name)
                 if line.name == "movl":
@@ -179,7 +178,6 @@ class InterferenceGraph:
         return self.colorGraph(x86code);
 
     def colorGraph(self, x86code):
-        #print self.interference
         color = {}
         saturation ={}
         color["^eax"]= 0
@@ -193,10 +191,8 @@ class InterferenceGraph:
 
         uncolored = Set()
         for node in self.interference:
-            #print node
             if node[0]!='^':
                 uncolored.add(node)
-        #print "uncolored", uncolored
         while len(uncolored):
             curNode = self.findMax(uncolored,saturation)
 
@@ -204,7 +200,6 @@ class InterferenceGraph:
             #print neighbors
 
             sortedNeighbors = map(lambda e: color[e] if color.has_key(e) else -1, neighbors)
-            #sortedNeighbors.sort()
             if len(sortedNeighbors)==0:
                 color[curNode]=0
             else:
@@ -217,19 +212,7 @@ class InterferenceGraph:
                     if coolList[i]==0:
                         color[curNode] = i
                         break
-            #print color[curNode]
 
-
-
-            #while len(sortedNeighbors) > 0 and sortedNeighbors[0] == -1:
-            #    sortedNeighbors = sortedNeighbors[1:]
-            #counter = 0
-            #for el in sortedNeighbors:
-            #    if counter == el:
-            #        counter+=1
-            #    elif counter< el:
-            #        break
-            #color[curNode] = counter
             for node in self.interference[curNode]:
                 saturation[node]+=1
             uncolored.remove(curNode)
@@ -238,7 +221,6 @@ class InterferenceGraph:
 
         #print color
         #print saturation
-        #print uncolored
         return self.cleanUpCrew(x86code,color)
 
 
