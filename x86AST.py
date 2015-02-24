@@ -217,8 +217,6 @@ class InterferenceGraph:
                 saturation[node]+=1
             uncolored.remove(curNode)
 
-
-
         #print color
         #print saturation
         return self.cleanUpCrew(x86code,color)
