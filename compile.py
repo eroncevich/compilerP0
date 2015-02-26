@@ -55,8 +55,12 @@ class ExplicateParser:
         elif isinstance(ast,Discard):
             return Discard(self.explicate(ast.expr))
         elif isinstance(ast,Const):
-            return ast
+            return InjectFrom('int', ast)
         elif isinstance(ast,Name):
+            if ast.name == "True":
+                return InjectFrom('bool', Const(1))
+            elif ast.name == "False":
+                return InjectFrom('bool', Const(0))
             return ast
         elif isinstance(ast,Add):
             l = self.explicate(ast.left)
@@ -105,7 +109,7 @@ class ExplicateParser:
                 rightBig = IsType('big', name2)
 
                 ifExp = IfExp(self.explicate(And([leftWord,rightWord])),InjectFrom('bool', Compare(name1,[op, name2])),
-                IfExp(self.explicate(And([leftBig,rightBig])),InjectFrom('bool',CallFunc(funcName,[ProjectTo('big',name1),ProjectTo('big',name2)])), Name("False")))
+                IfExp(self.explicate(And([leftBig,rightBig])),InjectFrom('bool',CallFunc(funcName,[ProjectTo('big',name1),ProjectTo('big',name2)])), InjectFrom('bool', Const(0))))
 
                 return Let(name1,l,Let(name2,r,ifExp))
             elif op == 'is':
@@ -116,24 +120,34 @@ class ExplicateParser:
 
 
         elif isinstance(ast,Or):
-            pass
+            l = self.explicate(ast.nodes[0])
+            r = self.explicate(ast.nodes[1])
+
+            name = self.getNewTmp()
+
+            return Let(name, l, IfExp(ProjectTo('bool', CallFunc('is_true', [name])), name, r))
         elif isinstance(ast,And):
-            
-            pass
+            l = self.explicate(ast.nodes[0])
+            r = self.explicate(ast.nodes[1])
+
+            name = self.getNewTmp()
+
+            return Let(name, l, IfExp(ProjectTo('bool', CallFunc('is_true', [name])), r, name))
 
         elif isinstance(ast,Not):
-            pass
+            return Not(InjectFrom('int', CallFunc('is_true', [self.explicate(ast.expr)])))
 
         elif isinstance(ast,List):
-            pass
+            return List([self.explicate(e) for e in ast.nodes])
 
         elif isinstance(ast,Dict):
-            pass
+            return Dict([(self.explicate(e), self.explicate(l)) for e,l in ast.items])
 
         elif isinstance(ast,Subscript):
-            pass
+            return Subscript(self.explicate(ast.expr), ast.flags, [self.explicate(ast.subs[0])])
+
         elif isinstance(ast,IfExp):
-            pass
+            return IfExp(self.explicate(ast.test), self.explicate(ast.then), self.explicate(ast.else_))
         else:
           pass
     def getNewTmp(self):
