@@ -11,15 +11,136 @@ class InjectFrom(Node):
     def __init__(self, typ, arg):
         self.typ = typ
         self.arg = arg
+    def __repr__(self):
+        return "InjectFrom(%s,%s)" % (self.typ,self.arg)
 class ProjectTo(Node):
     def __init__(self, typ, arg):
         self.typ = typ
         self.arg = arg
+    def __repr__(self):
+        return "ProjectTo(%s,%s)" % (self.typ,self.arg)
 class Let(Node):
     def __init__(self, var, rhs, body):
         self.var = var
         self.rhs = rhs
         self.body = body
+    def __repr__(self):
+        return "Let(%s,%s,%s)" % (self.var,self.rhs,self.body)
+class ThrowErr(Node):
+    def __init__(self,strName):
+        self.strName = strName
+class IsType(Node):
+    def __init__(self,typ, var):
+        self.typ = typ
+        self.var = var
+    def __repr__(self):
+        return "IsType(%s,%s)" % (self.typ,self.var)
+
+class ExplicateParser:
+    def __init__(self, ast):
+        self.tmp = 0
+        self.ast = ast
+        #self.flat = []
+    def explicate(self,ast):
+        if isinstance(ast,Module):
+            return Module(ast.doc,self.explicate(ast.node))
+        elif isinstance(ast,Stmt):
+            return Stmt([self.explicate(stmt) for stmt in ast.nodes])
+        elif isinstance(ast,Printnl):
+            return Printnl(self.explicate(ast.nodes),ast.dest)
+        elif isinstance(ast,Assign):
+            return Assign([ast.nodes[0]], self.explicate(ast.expr))
+        elif isinstance(ast,AssName):
+            return ast
+        elif isinstance(ast,Discard):
+            return Discard(self.explicate(ast.expr))
+        elif isinstance(ast,Const):
+            return ast
+        elif isinstance(ast,Name):
+            return ast
+        elif isinstance(ast,Add):
+            l = self.explicate(ast.left)
+            r = self.explicate(ast.right)
+
+            name1 = self.getNewTmp()
+            name2 = self.getNewTmp()
+
+
+            leftWord = self.explicate(Or([IsType('int',name1),IsType('bool',name1)]))
+            rightWord = self.explicate(Or([IsType('int',name2),IsType('bool',name2)]))
+            leftBig = IsType('big', name1)
+            rightBig = IsType('big', name2)
+
+            ifExp = IfExp(self.explicate(And([leftWord,rightWord])),InjectFrom('int', Add(ProjectTo('int',name1),ProjectTo('int',name2))),
+                IfExp(self.explicate(And([leftBig,rightBig])),InjectFrom('big',(Add(ProjectTo('big',name1),ProjectTo('big',name2)))), ThrowErr('add_error')))
+
+            return Let(name1, l,Let(name2,r,ifExp))
+
+        elif isinstance(ast,UnarySub):
+            child = self.explicate(ast.expr)
+            name = self.getNewTmp()
+
+            orStmt= self.explicate(Or([IsType('int',name),IsType('bool',name)]))
+
+            ifExp = IfExp(orStmt,InjectFrom('int', UnarySub(ProjectTo('int',name))), ThrowErr('unarysub_error'))
+            return Let(name,child,ifExp)
+
+        elif isinstance(ast,CallFunc):
+            return ast
+            #TODO: explicate over args
+
+        elif isinstance(ast,Compare):
+            l = self.explicate(ast.expr)
+            r = self.explicate(ast.ops[0][1])
+
+            name1 = self.getNewTmp()
+            name2 = self.getNewTmp()
+            op = ast.ops[0][0]
+
+            if op == '==' or op == '!=':
+                funcName = 'equals' if op == '==' else 'not_equals'
+                leftWord = self.explicate(Or([IsType('int',name1),IsType('bool',name1)]))
+                rightWord = self.explicate(Or([IsType('int',name2),IsType('bool',name2)]))
+                leftBig = IsType('big', name1)
+                rightBig = IsType('big', name2)
+
+                ifExp = IfExp(self.explicate(And([leftWord,rightWord])),InjectFrom('bool', Compare(name1,[op, name2])),
+                IfExp(self.explicate(And([leftBig,rightBig])),InjectFrom('bool',CallFunc(funcName,[ProjectTo('big',name1),ProjectTo('big',name2)])), Name("False")))
+
+                return Let(name1,l,Let(name2,r,ifExp))
+            elif op == 'is':
+                return Compare(l,[op,r])
+            else:
+                print "Error Compare"
+                exit()
+
+
+        elif isinstance(ast,Or):
+            pass
+        elif isinstance(ast,And):
+            
+            pass
+
+        elif isinstance(ast,Not):
+            pass
+
+        elif isinstance(ast,List):
+            pass
+
+        elif isinstance(ast,Dict):
+            pass
+
+        elif isinstance(ast,Subscript):
+            pass
+        elif isinstance(ast,IfExp):
+            pass
+        else:
+          pass
+    def getNewTmp(self):
+      newTmp = Name('expl '+`self.tmp`)
+      self.tmp += 1
+      return newTmp
+
 
 class flatParser:
   def __init__(self, ast):
@@ -70,12 +191,6 @@ class flatParser:
         r = self.flatAst(ast.right)
         if(isinstance(l,Const) and isinstance(r,Const)):
             return Const(l.value+r.value)
-        # self.flat.append(IfExp(And([Compare(GetTag(l),[('==',0)]),Compare(GetTag(l),[('==',0)])),
-        # Add(ProjectTo('int',l),ProjectTo('int',r)),
-        # IfExp(And([Compare(GetTag(l),[('==',2)]),Compare(GetTag(l),[('==',2)])),
-        # Add(ProjectTo('big',l),ProjectTo('big',r)),
-        # nil)))
-
 
         newTmp = self.getNewTmp()
         self.flat.append(Assign(newTmp, Add((l,r))))
@@ -155,11 +270,6 @@ class pyTo86:
       elif isinstance(curLine, UnarySub):
           self.output.append(UnaryOp("negl", NameOp(curLine.expr.name)))
 
-      #elif isinstance(curLine,UnarySub):
-      #  if isinstance(curLine.expr, Name):
-      #    self.output.append(UnaryOp("negl", NameOp(curLine.expr.name)))
-      #  else:
-      #    pass
 
   def convertLine(self,curLine,tmpName):
     if isinstance(curLine,Add):
@@ -205,9 +315,13 @@ if __name__ == "__main__":
     inStr=myfile.read()
 
   ast = compiler.parse(inStr)
+  print ast
+  myExplicate = ExplicateParser(ast)
+  ast = myExplicate.explicate(ast)
+  print ast
+
   parser = flatParser(ast)
   #print inStr, "\n"
-  print ast
 
   parser.flatAst(parser.ast)
   parser.printFlat()
