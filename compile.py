@@ -4,6 +4,22 @@ import x86AST
 from compiler.ast import *
 from x86AST import *
 
+class GetTag(Node):
+    def __init__(self, arg):
+        self.arg = arg
+class InjectFrom(Node):
+    def __init__(self, typ, arg):
+        self.typ = typ
+        self.arg = arg
+class ProjectTo(Node):
+    def __init__(self, typ, arg):
+        self.typ = typ
+        self.arg = arg
+class Let(Node):
+    def __init__(self, var, rhs, body):
+        self.var = var
+        self.rhs = rhs
+        self.body = body
 
 class flatParser:
   def __init__(self, ast):
@@ -13,20 +29,20 @@ class flatParser:
 
   def flatAst(self, ast):
     if isinstance(ast,Module):
-      #print "Module"
-      # return Module(None, flatAst(ast.node))
       self.flatAst(ast.node)
+
     elif isinstance(ast,Stmt):
       for stmt in ast.nodes:
         self.flatAst(stmt)
+
     elif isinstance(ast,Printnl):
       child = self.flatAst(ast.nodes[0])
       if isinstance(child, Const):
-          newTmp = Name('tmp '+`self.tmp`)
+          newTmp = self.getNewTmp()
           self.flat.append(Assign(newTmp,child))
-          self.tmp += 1
           child= newTmp
       self.flat.append(Printnl([child],None))
+
     elif isinstance(ast,Assign):
       varVal = self.flatAst(ast.expr)
       for node in ast.nodes:
@@ -34,27 +50,36 @@ class flatParser:
         self.flat.append(Assign(varName, varVal))
         self.tmp += 1
       return varVal
+
     elif isinstance(ast,AssName):
       return Name(ast.name)
+
     elif isinstance(ast,Discard):
       child = self.flatAst(ast.expr)
       if isinstance(child,CallFunc):
         self.flat.append(child)
+
     elif isinstance(ast,Const):
       return ast
+
     elif isinstance(ast,Name):
       return ast
+
     elif isinstance(ast,Add): #Add
-      l = self.flatAst(ast.left)
-      r = self.flatAst(ast.right)
+        l = self.flatAst(ast.left)
+        r = self.flatAst(ast.right)
+        if(isinstance(l,Const) and isinstance(r,Const)):
+            return Const(l.value+r.value)
+        # self.flat.append(IfExp(And([Compare(GetTag(l),[('==',0)]),Compare(GetTag(l),[('==',0)])),
+        # Add(ProjectTo('int',l),ProjectTo('int',r)),
+        # IfExp(And([Compare(GetTag(l),[('==',2)]),Compare(GetTag(l),[('==',2)])),
+        # Add(ProjectTo('big',l),ProjectTo('big',r)),
+        # nil)))
 
-      if(isinstance(l,Const) and isinstance(r,Const)):
-        return Const(l.value+r.value)
 
-      newTmp = Name('tmp '+`self.tmp`)
-      self.flat.append(Assign(newTmp, Add((l,r))))
-      self.tmp += 1
-      return newTmp
+        newTmp = self.getNewTmp()
+        self.flat.append(Assign(newTmp, Add((l,r))))
+        return newTmp
 
     elif isinstance(ast,UnarySub):
       child = self.flatAst(ast.expr)
@@ -62,20 +87,52 @@ class flatParser:
         child = Const(-child.value)
         newTmp = child
       else:
-        newTmp = Name('tmp '+`self.tmp`)
+        newTmp = self.getNewTmp()
         self.flat.append(Assign(newTmp,UnarySub(child)))
-        self.tmp += 1
       return newTmp
+
     elif isinstance(ast,CallFunc):
-      newTmp = Name('tmp '+`self.tmp`)
+      newTmp = self.getNewTmp()
       self.flat.append(Assign(newTmp, ast))
-      self.tmp += 1
-      newTmp2 = Name('tmp '+`self.tmp`)
+      newTmp2 = self.getNewTmp()
       self.flat.append(Assign(newTmp2, newTmp))
-      self.tmp += 1
       return newTmp2
+
+    elif isinstance(ast,Compare):
+      print ast.expr
+      print ast.ops
+
+    elif isinstance(ast,Or):
+      print ast.nodes
+
+    elif isinstance(ast,And):
+      print ast.nodes
+
+    elif isinstance(ast,Not):
+      print ast.expr
+
+    elif isinstance(ast,List):
+      print ast.nodes
+
+    elif isinstance(ast,Dict):
+      print self.items
+
+    elif isinstance(ast,Subscript):
+      print self.expr
+      print self.flags
+      print self.subs
+    elif isinstance(ast,IfExp):
+      print ast.test
+      print ast.then
+      print ast.else_
     else:
       pass
+
+  def getNewTmp(self):
+      newTmp = Name('tmp '+`self.tmp`)
+      self.tmp += 1
+      return newTmp
+
   def printFlat(self):
     print "*****Args*****"
     for args in self.flat:
@@ -89,23 +146,11 @@ class pyTo86:
     self.varLookup = {}
     self.varCounter = 4
 
-  def startStack(self):
-    self.output+=(".globl main\nmain:\n")
-    self.output+=("\tpushl %ebp\n")
-    self.output+=("\tmovl %esp, %ebp\n")
-    self.output+=("\tsubl $%d, %%esp\n" % self.stackSize)
-
   def convert86(self):
     for curLine in self.flatAst:
       if isinstance(curLine, Assign):
         self.convertLine(curLine.expr, curLine.nodes.name)
       elif isinstance(curLine, Printnl):
-        #print curLine.nodes[0]
-        #print "@@@@@@@@@@@@@@@@2"
-        #print repr(self.getConstOrName(curLine.nodes[0]))
-        #arg = self.getConstOrName(curLine.nodes[0])
-        #if isinstance(arg,Const):
-        #    self.output.append(PrintOp()
         self.output.append(PrintOp(self.getConstOrName(curLine.nodes[0])))
       elif isinstance(curLine, UnarySub):
           self.output.append(UnaryOp("negl", NameOp(curLine.expr.name)))
@@ -162,12 +207,11 @@ if __name__ == "__main__":
   ast = compiler.parse(inStr)
   parser = flatParser(ast)
   #print inStr, "\n"
-  #print ast
+  print ast
 
   parser.flatAst(parser.ast)
-  #parser.printFlat()
+  parser.printFlat()
   to86 = pyTo86(parser.flat,parser.tmp)
-  #to86.startStack()
   to86.convert86()
   #to86.endStack()
   #print "\n"
