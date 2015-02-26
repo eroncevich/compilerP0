@@ -47,7 +47,7 @@ class ExplicateParser:
         elif isinstance(ast,Stmt):
             return Stmt([self.explicate(stmt) for stmt in ast.nodes])
         elif isinstance(ast,Printnl):
-            return Printnl(self.explicate(ast.nodes),ast.dest)
+            return Printnl(self.explicate(ast.nodes[0]),ast.dest)
         elif isinstance(ast,Assign):
             return Assign([ast.nodes[0]], self.explicate(ast.expr))
         elif isinstance(ast,AssName):
@@ -171,6 +171,8 @@ class flatParser:
         self.flatAst(stmt)
 
     elif isinstance(ast,Printnl):
+      print ast
+      print "@@@@@@@@@@@@@@"
       child = self.flatAst(ast.nodes[0])
       if isinstance(child, Const):
           newTmp = self.getNewTmp()
@@ -332,6 +334,7 @@ if __name__ == "__main__":
   print ast
   myExplicate = ExplicateParser(ast)
   ast = myExplicate.explicate(ast)
+  print "@@@@@@@@@@"
   print ast
 
   parser = flatParser(ast)
