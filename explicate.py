@@ -74,8 +74,8 @@ class ExplicateParser:
             rightWord = (Or([IsType('int',name2),IsType('bool',name2)]))
             leftBig = IsType('big', name1)
             rightBig = IsType('big', name2)
-            ifExp = IfExp((And([leftWord,rightWord])),InjectFrom('int', Add((ProjectTo('int',name1),ProjectTo('int',name2)))),
-                IfExp((And([leftBig,rightBig])),InjectFrom('big',(Add((ProjectTo('big',name1),ProjectTo('big',name2))))), ThrowErr('add_error')))
+            ifExp = IfExp(self.explicate(And([leftWord,rightWord])),InjectFrom('int', Add((ProjectTo('int',name1),ProjectTo('int',name2)))),
+                IfExp(self.explicate(And([leftBig,rightBig])),InjectFrom('big',(Add((ProjectTo('big',name1),ProjectTo('big',name2))))), ThrowErr('add_error')))
 
             return Let(name1, l,Let(name2,r,ifExp))
 
@@ -83,7 +83,7 @@ class ExplicateParser:
             child = self.explicate(ast.expr)
             name = self.getNewTmp()
 
-            orStmt= (Or([IsType('int',name),IsType('bool',name)]))
+            orStmt= self.explicate(Or([IsType('int',name),IsType('bool',name)]))
 
             ifExp = IfExp(orStmt,InjectFrom('int', UnarySub(ProjectTo('int',name))), ThrowErr('unarysub_error'))
             return Let(name,child,ifExp)
@@ -107,12 +107,12 @@ class ExplicateParser:
                 leftBig = IsType('big', name1)
                 rightBig = IsType('big', name2)
 
-                ifExp = IfExp((And([leftWord,rightWord])),InjectFrom('bool', Compare(name1,[op, name2])),
-                IfExp((And([leftBig,rightBig])),InjectFrom('bool',CallFunc(funcName,[ProjectTo('big',name1),ProjectTo('big',name2)])), InjectFrom('bool', Const(0))))
+                ifExp = IfExp(self.explicate(And([leftWord,rightWord])),InjectFrom('bool', Compare(name1,[(op, name2)])),
+                IfExp(self.explicate(And([leftBig,rightBig])),InjectFrom('bool',CallFunc(funcName,[ProjectTo('big',name1),ProjectTo('big',name2)])), InjectFrom('bool', Const(0))))
 
                 return Let(name1,l,Let(name2,r,ifExp))
             elif op == 'is':
-                return Compare(l,[op,r])
+                return Compare(l,[(op,r)])
             else:
                 print "Error Compare"
                 exit()
@@ -147,6 +147,8 @@ class ExplicateParser:
 
         elif isinstance(ast,IfExp):
             return IfExp(self.explicate(ast.test), self.explicate(ast.then), self.explicate(ast.else_))
+        elif isinstance(ast,IsType):
+            return IsType(ast.typ,self.explicate(ast.var))
         else:
           print "Error:",ast
     def getNewTmp(self):

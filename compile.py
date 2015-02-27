@@ -79,14 +79,12 @@ class flatParser:
       return newTmp2
 
     elif isinstance(ast,Compare):
-      print ast.expr
-      print ast.ops
-
-    elif isinstance(ast,Or):
-      print ast.nodes
-
-    elif isinstance(ast,And):
-      print ast.nodes
+      #print ast.expr
+      #print ast.ops
+      l = self.flatAst(ast.expr)
+      r = self.flatAst(ast.ops[0][1])
+      newTmp = self.getNewTmp()
+      self.flat.append(Assign(newTmp,Compare(l,[(ast.ops[0][0],r)])))
 
     elif isinstance(ast,Not):
         newTmp = self.getNewTmp()
@@ -138,6 +136,11 @@ class flatParser:
         child = self.flatAst(ast.body)
         self.flat.append(Assign(newTmp1,child))
         return newTmp1
+    elif isinstance(ast,IsType):
+        newTmp = self.getNewTmp()
+        funcName = "is_%s" % ast.typ 
+        self.flat.append(Assign(newTmp, CallFunc(funcName, [ast.var])))
+        return newTmp
     elif isinstance(ast,ThrowErr):
         return ast
 
