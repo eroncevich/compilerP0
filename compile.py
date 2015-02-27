@@ -12,13 +12,13 @@ class InjectFrom(Node):
         self.typ = typ
         self.arg = arg
     def __repr__(self):
-        return "InjectFrom(%s,%s)" % (self.typ,self.arg)
+        return "InjectFrom(\'%s\',%s)" % (self.typ,self.arg)
 class ProjectTo(Node):
     def __init__(self, typ, arg):
         self.typ = typ
         self.arg = arg
     def __repr__(self):
-        return "ProjectTo(%s,%s)" % (self.typ,self.arg)
+        return "ProjectTo(\'%s\',%s)" % (self.typ,self.arg)
 class Let(Node):
     def __init__(self, var, rhs, body):
         self.var = var
@@ -29,6 +29,8 @@ class Let(Node):
 class ThrowErr(Node):
     def __init__(self,strName):
         self.strName = strName
+    def __repr__(self):
+        return "ThrowErr(\'%s\')" % (self.strName)
 class IsType(Node):
     def __init__(self,typ, var):
         self.typ = typ
@@ -47,7 +49,7 @@ class ExplicateParser:
         elif isinstance(ast,Stmt):
             return Stmt([self.explicate(stmt) for stmt in ast.nodes])
         elif isinstance(ast,Printnl):
-            return Printnl(self.explicate(ast.nodes[0]),ast.dest)
+            return Printnl([self.explicate(ast.nodes[0])],ast.dest)
         elif isinstance(ast,Assign):
             return Assign([ast.nodes[0]], self.explicate(ast.expr))
         elif isinstance(ast,AssName):
@@ -70,13 +72,12 @@ class ExplicateParser:
             name2 = self.getNewTmp()
 
 
-            leftWord = self.explicate(Or([IsType('int',name1),IsType('bool',name1)]))
-            rightWord = self.explicate(Or([IsType('int',name2),IsType('bool',name2)]))
+            leftWord = (Or([IsType('int',name1),IsType('bool',name1)]))
+            rightWord = (Or([IsType('int',name2),IsType('bool',name2)]))
             leftBig = IsType('big', name1)
             rightBig = IsType('big', name2)
-
-            ifExp = IfExp(self.explicate(And([leftWord,rightWord])),InjectFrom('int', Add(ProjectTo('int',name1),ProjectTo('int',name2))),
-                IfExp(self.explicate(And([leftBig,rightBig])),InjectFrom('big',(Add(ProjectTo('big',name1),ProjectTo('big',name2)))), ThrowErr('add_error')))
+            ifExp = IfExp((And([leftWord,rightWord])),InjectFrom('int', Add((ProjectTo('int',name1),ProjectTo('int',name2)))),
+                IfExp((And([leftBig,rightBig])),InjectFrom('big',(Add((ProjectTo('big',name1),ProjectTo('big',name2))))), ThrowErr('add_error')))
 
             return Let(name1, l,Let(name2,r,ifExp))
 
@@ -84,7 +85,7 @@ class ExplicateParser:
             child = self.explicate(ast.expr)
             name = self.getNewTmp()
 
-            orStmt= self.explicate(Or([IsType('int',name),IsType('bool',name)]))
+            orStmt= (Or([IsType('int',name),IsType('bool',name)]))
 
             ifExp = IfExp(orStmt,InjectFrom('int', UnarySub(ProjectTo('int',name))), ThrowErr('unarysub_error'))
             return Let(name,child,ifExp)
@@ -103,13 +104,13 @@ class ExplicateParser:
 
             if op == '==' or op == '!=':
                 funcName = 'equals' if op == '==' else 'not_equals'
-                leftWord = self.explicate(Or([IsType('int',name1),IsType('bool',name1)]))
-                rightWord = self.explicate(Or([IsType('int',name2),IsType('bool',name2)]))
+                leftWord = (Or([IsType('int',name1),IsType('bool',name1)]))
+                rightWord = (Or([IsType('int',name2),IsType('bool',name2)]))
                 leftBig = IsType('big', name1)
                 rightBig = IsType('big', name2)
 
-                ifExp = IfExp(self.explicate(And([leftWord,rightWord])),InjectFrom('bool', Compare(name1,[op, name2])),
-                IfExp(self.explicate(And([leftBig,rightBig])),InjectFrom('bool',CallFunc(funcName,[ProjectTo('big',name1),ProjectTo('big',name2)])), InjectFrom('bool', Const(0))))
+                ifExp = IfExp((And([leftWord,rightWord])),InjectFrom('bool', Compare(name1,[op, name2])),
+                IfExp((And([leftBig,rightBig])),InjectFrom('bool',CallFunc(funcName,[ProjectTo('big',name1),ProjectTo('big',name2)])), InjectFrom('bool', Const(0))))
 
                 return Let(name1,l,Let(name2,r,ifExp))
             elif op == 'is':
@@ -149,7 +150,7 @@ class ExplicateParser:
         elif isinstance(ast,IfExp):
             return IfExp(self.explicate(ast.test), self.explicate(ast.then), self.explicate(ast.else_))
         else:
-          pass
+          print "Error:",ast
     def getNewTmp(self):
       newTmp = Name('expl '+`self.tmp`)
       self.tmp += 1
@@ -171,7 +172,6 @@ class flatParser:
         self.flatAst(stmt)
 
     elif isinstance(ast,Printnl):
-      print ast
       print "@@@@@@@@@@@@@@"
       child = self.flatAst(ast.nodes[0])
       if isinstance(child, Const):
@@ -241,6 +241,9 @@ class flatParser:
 
     elif isinstance(ast,Not):
       print ast.expr
+      newTmp = self.getNewTmp()
+      child = self.flatAst(ast.expr)
+      self.flat.append(Assign(newTmp,Not(child)))
 
     elif isinstance(ast,List):
       print ast.nodes
@@ -256,8 +259,11 @@ class flatParser:
       print ast.test
       print ast.then
       print ast.else_
+    elif isinstance(ast,InjectFrom):
+        print ast
     else:
-      pass
+        print "***error:", ast
+        pass
 
   def getNewTmp(self):
       newTmp = Name('tmp '+`self.tmp`)
