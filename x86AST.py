@@ -37,7 +37,7 @@ class FuncOp(Node):
     def __repr__(self):
         return "FuncOp(%s,%s,%s)" % (self.name, self.args, self.var)
     def __str__(self):
-        return "call %s %s" % (self.name,[str(arg) for arg in self.args])
+        return "call %s %s -> %s" % (str(self.name),[str(arg) for arg in self.args], str(self.var))
 
 class PrintOp(Node):
     def __init__(self, name):
@@ -111,6 +111,14 @@ class InterferenceGraph:
         self.maxcolor=0
         self.inputLookup = {}
 
+    def getConstOrName(self, op):
+        if isinstance(op,ConstOp):
+            return op.value
+        elif isinstance(op,NameOp):
+            return op.name
+        else:
+            print "Not Const or Name"
+
     def createLiveness(self, x86code):
         count = 0
         for line in reversed(x86code):
@@ -161,7 +169,7 @@ class InterferenceGraph:
             #print x86code[count],self.live[count]
             if isinstance(x86code[count], BinaryOp):
 
-                t = x86code[count].dest.name
+                t = self.getConstOrName(x86code[count].dest)
                 s = ""
                 if isinstance(x86code[count].src, NameOp):
                     s = x86code[count].src.name

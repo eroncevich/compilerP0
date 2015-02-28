@@ -108,17 +108,20 @@ class flatParser:
         condTmp = self.getNewTmp()
         newTmp = self.getNewTmp()
         test = self.flatAst(ast.test)
-        self.flat.append(Assign(condTmp,test))
+        self.flat.append(Assign(condTmp,CallFunc(Name('is_true'), [test])))
 
-        (ifName,elifName,endName) = self.getIfTmp()
-        #(ifName,elifName,endName) = (Name("if"),Name("then"),Name("if"))
-        self.flat.append(ifName)
+        (ifName,thenName,endName) = self.getIfTmp()
+        #(ifName,elseName,endName) = (Name("if"),Name("then"),Name("if"))
+
+        self.flat.append(Name(ifName.name +' , '+condTmp.name))
+
+        else_ = self.flatAst(ast.else_)
+        self.flat.append(Assign(newTmp,else_))
+
+        self.flat.append(thenName)
         then = self.flatAst(ast.then)
         self.flat.append(Assign(newTmp,then))
 
-        self.flat.append(elifName)
-        else_ = self.flatAst(ast.else_)
-        self.flat.append(Assign(newTmp,else_))
 
         self.flat.append(endName)
         return newTmp
@@ -160,10 +163,10 @@ class flatParser:
       return newTmp
   def getIfTmp(self):
       ifName = Name('if '+`self.ifTmp`)
-      elifName = Name('else '+`self.ifTmp`)
+      thenName = Name('then '+`self.ifTmp`)
       endName = Name('end '+`self.ifTmp`)
       self.tmp += 1
-      return (ifName,elifName,endName)
+      return (ifName,thenName,endName)
 
   def printFlat(self):
     print "*****Args*****"
@@ -185,8 +188,20 @@ class pyTo86:
               self.convertLine(curLine.expr, NameOp(curLine.nodes.name))
           elif isinstance(curLine, Printnl):
               self.output.append(PrintOp(self.getConstOrName(curLine.nodes[0])))
-          if isinstance(curLine,Name):
-              pass
+          elif isinstance(curLine,Name):
+              line = curLine.name.split()
+              #p#rint line
+              #self.outout.append(CompareOp())
+              if line[0] == "if":
+                  condTmp = Name("%s %s" % (line[3],line[4]))
+                  #print condTmp
+                  self.output.append(BinaryOp("cmp", self.getConstOrName(condTmp), ConstOp(0)))
+                  self.output.append(JumpOp("jne",NameOp("then%s"%line[1])))
+              elif line[0] == "then":
+                  self.output.append(JumpOp("jmp", NameOp("end%s"%line[1])))
+                  self.output.append(ClauseOp(NameOp("then%s"%line[1])))
+              elif line[0] == "end":
+                  self.output.append(ClauseOp(NameOp("end%s"%line[1])))
           elif isinstance(curLine, UnarySub):
               #check to delete
               self.output.append(UnaryOp("negl", NameOp(curLine.expr.name)))
@@ -201,18 +216,17 @@ class pyTo86:
       elif isinstance(curLine, Name):
           self.output.append(BinaryOp("movl", NameOp(curLine.name), tmpName))
       elif isinstance(curLine, UnarySub):
-          #print "wrong"
           self.output.append(BinaryOp("movl", NameOp(curLine.expr.name), tmpName))
           self.output.append(UnaryOp("negl", tmpName))
       elif isinstance(curLine, CallFunc):
           #if not curLine.node.name in ["input", "is_true", "is_int","is_bool","is_big", "equals"]:
           #    print "Trying to call ", curLine.node.name
-          self.output.append(FuncOp(curLine.node.name,[self.getConstOrName(arg) for arg in curLine.args],tmpName))
+          self.output.append(FuncOp(NameOp(curLine.node.name),[self.getConstOrName(arg) for arg in curLine.args],tmpName))
       elif isinstance(curLine, InjectFrom):
-          funcName = Name("project_%s"%(curLine.typ))
+          funcName = NameOp("project_%s"%(curLine.typ))
           self.output.append(FuncOp(funcName,[self.getConstOrName(curLine.arg)],tmpName))
       elif isinstance(curLine, ProjectTo):
-          funcName = Name("inject_%s"%(curLine.typ))
+          funcName = NameOp("inject_%s"%(curLine.typ))
           self.output.append(FuncOp(funcName,[self.getConstOrName(curLine.arg.name)],tmpName))
           #self.output.append(FuncOp(funcName,[curLine.arg],tmpName))
       elif isinstance(curLine,Not):
@@ -235,7 +249,7 @@ class pyTo86:
   def getConstOrName(self, line):
     if isinstance(line, Name):
       return  NameOp(line.name)
-    elif isinstance(line,Name):
+    elif isinstance(line,Const):
       return ConstOp(line.value)
     else:
       return None
