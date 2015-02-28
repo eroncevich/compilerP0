@@ -11,7 +11,7 @@ for f in tests/*.py
     rm ${f%.*}".s"
     rm "test"
     python compile.py "$f"
-    gcc ${f%.*}".s" runtime.o hashtable.o hashtable_itr.o hashtable_utility.o -m32 -lm -o test
+    gcc ${f%.*}".s" hashtable.o hashtable_itr.o hashtable_utility.o runtime.o -m32 -lm -o test
     COMPILED=$(./test <${f%.*}.in)
     SCRIPTED=$(python $f <${f%.*}.in)
     if [ "$COMPILED" = "$SCRIPTED" ]

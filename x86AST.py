@@ -1,5 +1,5 @@
 from sets import Set
-
+from pprint import pprint
 
 class Node(object):
     def __init__(self):
@@ -83,14 +83,6 @@ class ClauseOp(Node):
         return "ClauseOp(%s)" % (repr(self.label))
     def __str__(self):
         return "%s:" % (str(self.label))
-class CompareOp(Node):
-    def __init__(self, left,right):
-        self.left = left
-        self.right = right
-    def __repr__(self):
-        return "CompareOp(%s,%s)" % (repr(self.left),repr(self.right))
-    def __str__(self):
-        return "cmp %s,%s" % (str(self.left),str(self.right))
 
 class InterferenceGraph:
     def __init__(self):
@@ -142,18 +134,21 @@ class InterferenceGraph:
                     if isinstance(line.src, NameOp):
                         self.live[count].add(line.src.name)
                 else:
-                    print "Unsupported Binary"
+                    print "Unsupported Binary Live"
             elif isinstance(line, UnaryOp):
                 if line.name == "negl":
                     if isinstance(line.param, NameOp):
                         self.live[count].add(line.param.name)
+                elif line.name == "notl":
+                    if isinstance(line.param, NameOp):
+                        self.live[count].add(line.param.name)
                 else:
-                    print "Unsupported Unary"
+                    print "Unsupported Unary Live"
             elif isinstance(line, PrintOp):
                 if isinstance(line.name, NameOp):
                     self.live[count].add(line.name.name)
                 else:
-                    print "Unsupported Print"
+                    print "Unsupported Print Live"
             elif isinstance(line,FuncOp):
                 for arg in line.args:
                     if isinstance(arg,NameOp):
@@ -169,16 +164,15 @@ class InterferenceGraph:
                 labels[line.label.name]= self.live[count].copy()
 
             else:
-                print "missing liveness",line.name
+                print "missing liveness",line
         self.live.reverse()
         self.live = self.live[1:]
-        #print "liveness"
         return self.createInterferenceGraph(x86code)
 
     def createInterferenceGraph(self, x86code):
         def addEdge(src,dest):
-            #if not self.interference.has_key(src):
-            #    self.interference[src] = Set([])
+            if not self.interference.has_key(src):
+                self.interference[src] = Set([])
             self.interference[src].add(dest)
             if not self.interference.has_key(dest):
                 self.interference[dest] = Set([])
@@ -204,12 +198,17 @@ class InterferenceGraph:
                         if var != t and var != s:# and t in line:
                             addEdge(t,var)
                     elif x86code[count].name == "addl":
-                        if var != t and t:# in line:
+                        if var != t:# and t in line:
                             addEdge(t,var)
+                    elif x86code[count].name == "cmp":
+                        if isinstance(t,NameOp) and var !=t:
+                            addEdge(t,var)
+                        if s and var !=s:
+                            addEdge(s,var)
+                    else:
+                        print "Unsuported Binary interference"
 
             if isinstance(x86code[count], PrintOp):
-                #for line in self.live[count:]:
-                #print x86code[count], self.live[count]
                 callerSave = ['^eax', '^ecx', '^edx']
                 for r in callerSave:
                     addEdge(x86code[count].name.name,r)
@@ -219,7 +218,6 @@ class InterferenceGraph:
                 t = x86code[count].param.name
                 if not self.interference.has_key(t):
                     self.interference[t] = Set([])
-                #for line in self.live[count:]:
                 for var in self.live[count]:
                     if var!= t:
                         addEdge(t,var)
@@ -228,8 +226,11 @@ class InterferenceGraph:
                 for r in callerSave:
                     for var in self.live[count]:
                         addEdge(r,var)
-        #print self.interference
-        #print "interference"
+                for arg in x86code[count].args:
+                    if isinstance(arg,NameOp):
+                        for var in self.live[count]:
+                            addEdge(arg.name,var)
+        #pprint(self.interference)
         return self.colorGraph(x86code);
 
     def colorGraph(self, x86code):
@@ -252,7 +253,6 @@ class InterferenceGraph:
             curNode = self.findMax(uncolored,saturation)
 
             neighbors = self.interference[curNode]
-            #print neighbors
 
             sortedNeighbors = map(lambda e: color[e] if color.has_key(e) else -1, neighbors)
             if len(sortedNeighbors)==0:
@@ -317,7 +317,6 @@ class InterferenceGraph:
                 else:
                     x86revision.append(line)
                     x86colored.append(BinaryOp(line.name, coloredSrc, coloredDest))
-                #if x86.colored[-1].src
             elif isinstance(line, UnaryOp):
                 x86revision.append(line)
                 x86colored.append(UnaryOp(line.name, getRegVal(line.param)))
@@ -326,10 +325,15 @@ class InterferenceGraph:
                 x86colored.append(PrintOp(getRegVal(line.name)))
             elif isinstance(line, FuncOp):
                 x86revision.append(line)
-                x86colored.append(FuncOp("input", line.args, line.var))
+                x86colored.append(FuncOp(line.name, line.args, line.var))
+            elif isinstance(line,JumpOp):
+                x86revision.append(line)
+                x86colored.append(JumpOp(line.name,line.label))
+            elif isinstance(line,ClauseOp):
+                x86revision.append(line)
+                x86colored.append(ClauseOp(line.label))
             else:
-                print "Unnaccounted for Type"
-            #x86colored.append(line)
+                print "Unnaccounted for Type",line
 
         # print x86colored
         #for line in x86colored:
@@ -353,9 +357,6 @@ class InterferenceGraph:
         if isinstance(name, NameOp):
             if self.inputLookup.has_key(name.name):
                 return self.inputLookup[name.name]
-            #if not color.has_key(name.name):
-            #    colorid = 0
-            #else:
             colorid = color[name.name]
             if colorid>5:
                 if colorid>self.maxcolor:
@@ -367,27 +368,37 @@ class InterferenceGraph:
             return "$%d"% name.value
 
     def prettyPrint(self,x86revision,color):
+        #print color
         finalString = ""
         for line in x86revision:
             if isinstance(line, FuncOp):
-                self.inputLookup[line.var] = '%eax'
-                finalString+="\tpushl %eax\n\tcall input\n"
+                for arg in reversed(line.args):
+                    finalString+="\tpushl %s\n" % (self.getArg(arg,color))
+                #self.inputLookup[line.var] = '%eax'
+                finalString+="\tcall %s\n" % str(line.name)
+                finalString+="\tmovl %%eax,%s\n"% (self.getArg(line.var,color))
             elif isinstance(line, PrintOp):
                 arg = self.getArg(line.name, color)
                 finalString+="\tpushl %s\n" % arg
-                finalString+="\tcall print_int_nl\n"
+                finalString+="\tcall print_any\n"
                 finalString+="\tpopl %s\n" % arg
             elif isinstance(line, BinaryOp):
                 leftArg = self.getArg(line.src, color)
                 rightArg = self.getArg(line.dest, color)
-                if line.name == "movl" and rightArg == leftArg:
-                    continue
-                else:
+                #if line.name == "movl" and rightArg == leftArg:
+                #    continue
+                #else:
                     #print line.src.name, line.dest
-                    finalString+="\t%s %s, %s\n" %(line.name, leftArg,rightArg)
+                finalString+="\t%s %s, %s\n" %(line.name, leftArg,rightArg)
 
             elif isinstance(line,UnaryOp):
                 finalString+="\t%s %s\n" %(line.name, self.getArg(line.param, color))
+            elif isinstance(line,JumpOp):
+                finalString+="\t%s\n" % str(line)
+            elif isinstance(line,ClauseOp):
+                finalString+="\t%s\n" % str(line)
+            else:
+                print "Unnaccounted Print", line
 
         header=(".globl main\nmain:\n")
         header+=("\tpushl %ebp\n")

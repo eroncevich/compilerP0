@@ -76,9 +76,9 @@ class flatParser:
       argFlat = [self.flatAst(arg) for arg in ast.args]
       newTmp = self.getNewTmp()
       self.flat.append(Assign(newTmp, CallFunc(ast.node,argFlat)))
-      newTmp2 = self.getNewTmp()
-      self.flat.append(Assign(newTmp2, newTmp))
-      return newTmp2
+      #newTmp2 = self.getNewTmp()
+      #self.flat.append(Assign(newTmp2, newTmp))
+      return newTmp
 
     elif isinstance(ast,Compare):
       #print ast.expr
@@ -87,7 +87,7 @@ class flatParser:
       r = self.flatAst(ast.ops[0][1])
       newTmp = self.getNewTmp()
       self.flat.append(Assign(newTmp,Compare(l,[(ast.ops[0][0],r)])))
-
+      return newTmp
     elif isinstance(ast,Not):
         newTmp = self.getNewTmp()
         child = self.flatAst(ast.expr)
@@ -96,14 +96,17 @@ class flatParser:
 
     elif isinstance(ast,List):
         print ast.nodes
+        return Const(777777777777777)
 
     elif isinstance(ast,Dict):
         print self.items
+        return Const(777777777777777)
 
     elif isinstance(ast,Subscript):
         print self.expr
         print self.flags
         print self.subs
+        return Const(777777777777777)
     elif isinstance(ast,IfExp):
         condTmp = self.getNewTmp()
         newTmp = self.getNewTmp()
@@ -165,7 +168,7 @@ class flatParser:
       ifName = Name('if '+`self.ifTmp`)
       thenName = Name('then '+`self.ifTmp`)
       endName = Name('end '+`self.ifTmp`)
-      self.tmp += 1
+      self.ifTmp += 1
       return (ifName,thenName,endName)
 
   def printFlat(self):
@@ -195,7 +198,7 @@ class pyTo86:
               if line[0] == "if":
                   condTmp = Name("%s %s" % (line[3],line[4]))
                   #print condTmp
-                  self.output.append(BinaryOp("cmp", self.getConstOrName(condTmp), ConstOp(0)))
+                  self.output.append(BinaryOp("cmp", ConstOp(0),self.getConstOrName(condTmp)))
                   self.output.append(JumpOp("jne",NameOp("then%s"%line[1])))
               elif line[0] == "then":
                   self.output.append(JumpOp("jmp", NameOp("end%s"%line[1])))
@@ -223,19 +226,20 @@ class pyTo86:
           #    print "Trying to call ", curLine.node.name
           self.output.append(FuncOp(NameOp(curLine.node.name),[self.getConstOrName(arg) for arg in curLine.args],tmpName))
       elif isinstance(curLine, InjectFrom):
-          funcName = NameOp("project_%s"%(curLine.typ))
+          funcName = NameOp("inject_%s"%(curLine.typ))
           self.output.append(FuncOp(funcName,[self.getConstOrName(curLine.arg)],tmpName))
       elif isinstance(curLine, ProjectTo):
-          funcName = NameOp("inject_%s"%(curLine.typ))
-          self.output.append(FuncOp(funcName,[self.getConstOrName(curLine.arg.name)],tmpName))
+          funcName = NameOp("project_%s"%(curLine.typ))
+          self.output.append(FuncOp(funcName,[self.getConstOrName(curLine.arg)],tmpName))
           #self.output.append(FuncOp(funcName,[curLine.arg],tmpName))
       elif isinstance(curLine,Not):
-          self.output.append(BinaryOp("movl", NameOp(curLine.expr),tmpName))
+          print curLine
+          self.output.append(BinaryOp("movl", self.getConstOrName(curLine.expr),tmpName))
           self.output.append(UnaryOp("notl",tmpName))
       elif isinstance(curLine,Compare):
           (neCmp,endCmp) = self.getCmpLabel()
           
-          self.output.append(CompareOp(self.getConstOrName(curLine.expr),self.getConstOrName(curLine.ops[0][1])))
+          self.output.append(BinaryOp("cmp",self.getConstOrName(curLine.expr),self.getConstOrName(curLine.ops[0][1])))
           self.output.append(JumpOp("jne",neCmp))
           self.output.append(BinaryOp("movl", ConstOp(1) ,tmpName))
           self.output.append(JumpOp("jne",endCmp))
@@ -252,6 +256,7 @@ class pyTo86:
     elif isinstance(line,Const):
       return ConstOp(line.value)
     else:
+      #print line.fdsaf
       return None
 
   def getAddr(self,varName):
@@ -282,7 +287,7 @@ if __name__ == "__main__":
   parser.printFlat()
   to86 = pyTo86(parser.flat,parser.tmp)
   to86.convert86()
-  for line in to86.output: print line 
+  #for line in to86.output: print line 
   ig = InterferenceGraph()
 
   output = ig.createLiveness(to86.output)
