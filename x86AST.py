@@ -120,6 +120,7 @@ class InterferenceGraph:
             print "Not Const or Name"
 
     def createLiveness(self, x86code):
+        labels = {}
         count = 0
         for line in reversed(x86code):
             self.live.append(self.live[count].copy())
@@ -130,26 +131,49 @@ class InterferenceGraph:
                         self.live[count].add(line.src.name)
                     if isinstance(line.dest, NameOp):
                         self.live[count].add(line.dest.name)
-                if line.name == "movl":
+                elif line.name == "movl":
                     if isinstance(line.dest, NameOp):
                         self.live[count] = self.live[count] - Set([line.dest.name])
                     if isinstance(line.src, NameOp):
                         self.live[count].add(line.src.name)
-            if isinstance(line, UnaryOp):
+                elif line.name == "cmp":
+                    if isinstance(line.dest, NameOp):
+                        self.live[count].add(line.dest.name)
+                    if isinstance(line.src, NameOp):
+                        self.live[count].add(line.src.name)
+                else:
+                    print "Unsupported Binary"
+            elif isinstance(line, UnaryOp):
                 if line.name == "negl":
                     if isinstance(line.param, NameOp):
                         self.live[count].add(line.param.name)
-            if isinstance(line, PrintOp):
+                else:
+                    print "Unsupported Unary"
+            elif isinstance(line, PrintOp):
                 if isinstance(line.name, NameOp):
                     self.live[count].add(line.name.name)
-            if isinstance(line,FuncOp):
-                if line.name == "input":
-                    self.live[count] = self.live[count] - Set([line.var])
+                else:
+                    print "Unsupported Print"
+            elif isinstance(line,FuncOp):
+                for arg in line.args:
+                    if isinstance(arg,NameOp):
+                        self.live[count].add(arg.name)
+                self.live[count] -= Set([line.var.name])
+            elif isinstance(line,JumpOp):
+                if line.name == "jmp":
+                    self.live[count] = labels[line.label.name]
+                else:
+                    self.live[count] = self.live[count] | labels[line.label.name]
+
+            elif isinstance(line,ClauseOp):
+                labels[line.label.name]= self.live[count].copy()
+
+            else:
+                print "missing liveness",line.name
         self.live.reverse()
         self.live = self.live[1:]
         #print "liveness"
         return self.createInterferenceGraph(x86code)
-        #return self.live
 
     def createInterferenceGraph(self, x86code):
         def addEdge(src,dest):
@@ -165,8 +189,7 @@ class InterferenceGraph:
         self.interference['^edx'] = Set([])
         somelen = len(x86code)
         for count in range(0,somelen):
-            #print "0"
-            #print x86code[count],self.live[count]
+            print x86code[count],self.live[count]
             if isinstance(x86code[count], BinaryOp):
 
                 t = self.getConstOrName(x86code[count].dest)

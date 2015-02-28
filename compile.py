@@ -233,9 +233,9 @@ class pyTo86:
           self.output.append(BinaryOp("movl", NameOp(curLine.expr),tmpName))
           self.output.append(UnaryOp("notl",tmpName))
       elif isinstance(curLine,Compare):
-          self.output.append(CompareOp(self.getConstOrName(curLine.expr),self.getConstOrName(curLine.ops[0][1])))
           (neCmp,endCmp) = self.getCmpLabel()
           
+          self.output.append(CompareOp(self.getConstOrName(curLine.expr),self.getConstOrName(curLine.ops[0][1])))
           self.output.append(JumpOp("jne",neCmp))
           self.output.append(BinaryOp("movl", ConstOp(1) ,tmpName))
           self.output.append(JumpOp("jne",endCmp))
