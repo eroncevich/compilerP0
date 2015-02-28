@@ -101,7 +101,7 @@ class ExplicateParser:
             op = ast.ops[0][0]
 
             if op == '==' or op == '!=':
-                funcName = 'equals' if op == '==' else 'not_equals'
+                funcName = Name('equals' if op == '==' else 'not_equals')
                 leftWord = (Or([IsType('int',name1),IsType('bool',name1)]))
                 rightWord = (Or([IsType('int',name2),IsType('bool',name2)]))
                 leftBig = IsType('big', name1)
@@ -124,17 +124,17 @@ class ExplicateParser:
 
             name = self.getNewTmp()
 
-            return Let(name, l, IfExp(ProjectTo('bool', CallFunc('is_true', [name])), name, r))
+            return Let(name, l, IfExp(ProjectTo('bool', CallFunc(Name('is_true'), [name])), name, r))
         elif isinstance(ast,And):
             l = self.explicate(ast.nodes[0])
             r = self.explicate(ast.nodes[1])
 
             name = self.getNewTmp()
 
-            return Let(name, l, IfExp(ProjectTo('bool', CallFunc('is_true', [name])), r, name))
+            return Let(name, l, IfExp(ProjectTo('bool', CallFunc(Name('is_true'), [name])), r, name))
 
         elif isinstance(ast,Not):
-            return Not(InjectFrom('int', CallFunc('is_true', [self.explicate(ast.expr)])))
+            return Not(InjectFrom('int', CallFunc(Name('is_true'), [self.explicate(ast.expr)])))
 
         elif isinstance(ast,List):
             return List([self.explicate(e) for e in ast.nodes])

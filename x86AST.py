@@ -30,13 +30,14 @@ class ConstOp(Node):
         return "$%d" % self.value
 
 class FuncOp(Node):
-    def __init__(self, name, var):
+    def __init__(self, name, args, var):
         self.name = name
+        self.args = args
         self.var = var
     def __repr__(self):
-        return "FuncOp(%s,%s)" % (self.name, self.var)
+        return "FuncOp(%s,%s,%s)" % (self.name, self.args, self.var)
     def __str__(self):
-        return "call %s" % self.name
+        return "call %s %s" % (self.name,[str(arg) for arg in self.args])
 
 class PrintOp(Node):
     def __init__(self, name):
@@ -67,6 +68,29 @@ class UnaryOp(Node):
         return "UnaryOp(%s, %s)" % (self.name, repr(self.param))
     def __str__(self):
         return "%s %s" % (self.name, str(self.param))
+class JumpOp(Node):
+    def __init__(self, name,label):
+        self.name = name
+        self.label = label
+    def __repr__(self):
+        return "JumpOp(%s,%s)" % (self.name,repr(self.label))
+    def __str__(self):
+        return "%s %s" % (self.name, str(self.label))
+class ClauseOp(Node):
+    def __init__(self, label):
+        self.label = label
+    def __repr__(self):
+        return "ClauseOp(%s)" % (repr(self.label))
+    def __str__(self):
+        return "%s:" % (str(self.label))
+class CompareOp(Node):
+    def __init__(self, left,right):
+        self.left = left
+        self.right = right
+    def __repr__(self):
+        return "CompareOp(%s,%s)" % (repr(self.left),repr(self.right))
+    def __str__(self):
+        return "cmp %s,%s" % (str(self.left),str(self.right))
 
 class InterferenceGraph:
     def __init__(self):
@@ -271,7 +295,7 @@ class InterferenceGraph:
                 x86colored.append(PrintOp(getRegVal(line.name)))
             elif isinstance(line, FuncOp):
                 x86revision.append(line)
-                x86colored.append(FuncOp("input", line.var))
+                x86colored.append(FuncOp("input", line.args, line.var))
             else:
                 print "Unnaccounted for Type"
             #x86colored.append(line)

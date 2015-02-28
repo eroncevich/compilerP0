@@ -11,6 +11,7 @@ class flatParser:
     self.tmp = 0
     self.ast = ast
     self.flat = []
+    self.ifTmp =0
 
   def flatAst(self, ast):
     if isinstance(ast,Module):
@@ -51,7 +52,7 @@ class flatParser:
     elif isinstance(ast,Name):
       return ast
 
-    elif isinstance(ast,Add): #Add
+    elif isinstance(ast,Add):
         l = self.flatAst(ast.left)
         r = self.flatAst(ast.right)
         if(isinstance(l,Const) and isinstance(r,Const)):
@@ -72,8 +73,9 @@ class flatParser:
       return newTmp
 
     elif isinstance(ast,CallFunc):
+      argFlat = [self.flatAst(arg) for arg in ast.args]
       newTmp = self.getNewTmp()
-      self.flat.append(Assign(newTmp, ast))
+      self.flat.append(Assign(newTmp, CallFunc(ast.node,argFlat)))
       newTmp2 = self.getNewTmp()
       self.flat.append(Assign(newTmp2, newTmp))
       return newTmp2
@@ -108,15 +110,17 @@ class flatParser:
         test = self.flatAst(ast.test)
         self.flat.append(Assign(condTmp,test))
 
-        self.flat.append(Name("if"))
+        (ifName,elifName,endName) = self.getIfTmp()
+        #(ifName,elifName,endName) = (Name("if"),Name("then"),Name("if"))
+        self.flat.append(ifName)
         then = self.flatAst(ast.then)
         self.flat.append(Assign(newTmp,then))
 
-        self.flat.append(Name("elif"))
+        self.flat.append(elifName)
         else_ = self.flatAst(ast.else_)
         self.flat.append(Assign(newTmp,else_))
 
-        self.flat.append(Name("END"))
+        self.flat.append(endName)
         return newTmp
     elif isinstance(ast,InjectFrom):
         child = self.flatAst(ast.arg)
@@ -137,9 +141,11 @@ class flatParser:
         self.flat.append(Assign(newTmp1,child))
         return newTmp1
     elif isinstance(ast,IsType):
+        child = self.flatAst(ast.var)
         newTmp = self.getNewTmp()
-        funcName = "is_%s" % ast.typ 
-        self.flat.append(Assign(newTmp, CallFunc(funcName, [ast.var])))
+        funcName = Name("is_%s" % ast.typ )
+        self.flat.append(Assign(newTmp, CallFunc(funcName, [child])))
+        self.flat.append(Assign(newTmp, InjectFrom('bool',newTmp)))
         return newTmp
     elif isinstance(ast,ThrowErr):
         return ast
@@ -152,6 +158,12 @@ class flatParser:
       newTmp = Name('tmp '+`self.tmp`)
       self.tmp += 1
       return newTmp
+  def getIfTmp(self):
+      ifName = Name('if '+`self.ifTmp`)
+      elifName = Name('else '+`self.ifTmp`)
+      endName = Name('end '+`self.ifTmp`)
+      self.tmp += 1
+      return (ifName,elifName,endName)
 
   def printFlat(self):
     print "*****Args*****"
@@ -165,55 +177,79 @@ class pyTo86:
     self.output = []
     self.varLookup = {}
     self.varCounter = 4
+    self.cmp =0
 
   def convert86(self):
-    for curLine in self.flatAst:
-      if isinstance(curLine, Assign):
-        self.convertLine(curLine.expr, curLine.nodes.name)
-      elif isinstance(curLine, Printnl):
-        self.output.append(PrintOp(self.getConstOrName(curLine.nodes[0])))
-      elif isinstance(curLine, UnarySub):
-          self.output.append(UnaryOp("negl", NameOp(curLine.expr.name)))
+      for curLine in self.flatAst:
+          if isinstance(curLine, Assign):
+              self.convertLine(curLine.expr, NameOp(curLine.nodes.name))
+          elif isinstance(curLine, Printnl):
+              self.output.append(PrintOp(self.getConstOrName(curLine.nodes[0])))
+          if isinstance(curLine,Name):
+              pass
+          elif isinstance(curLine, UnarySub):
+              #check to delete
+              self.output.append(UnaryOp("negl", NameOp(curLine.expr.name)))
 
 
   def convertLine(self,curLine,tmpName):
-    if isinstance(curLine,Add):
-      self.output.append(BinaryOp("movl", self.getConstOrName(curLine.left), NameOp(tmpName)))
-      self.output.append(BinaryOp("addl", self.getConstOrName(curLine.right), NameOp(tmpName)))
-    elif isinstance(curLine, Const):
-      self.output.append(BinaryOp("movl", ConstOp(curLine.value), NameOp(tmpName)))
-    elif isinstance(curLine, Name):
-      self.output.append(BinaryOp("movl", NameOp(curLine.name), NameOp(tmpName)))
-    elif isinstance(curLine, UnarySub):
-      #print "wrong"
-      self.output.append(BinaryOp("movl", NameOp(curLine.expr.name), NameOp(tmpName)))
-      self.output.append(UnaryOp("negl", NameOp(tmpName)))
-    elif isinstance(curLine, CallFunc):
-      self.output.append(FuncOp("input", tmpName))
+      if isinstance(curLine,Add):
+          self.output.append(BinaryOp("movl", self.getConstOrName(curLine.left), tmpName))
+          self.output.append(BinaryOp("addl", self.getConstOrName(curLine.right), tmpName))
+      elif isinstance(curLine, Const):
+          self.output.append(BinaryOp("movl", ConstOp(curLine.value), tmpName))
+      elif isinstance(curLine, Name):
+          self.output.append(BinaryOp("movl", NameOp(curLine.name), tmpName))
+      elif isinstance(curLine, UnarySub):
+          #print "wrong"
+          self.output.append(BinaryOp("movl", NameOp(curLine.expr.name), tmpName))
+          self.output.append(UnaryOp("negl", tmpName))
+      elif isinstance(curLine, CallFunc):
+          #if not curLine.node.name in ["input", "is_true", "is_int","is_bool","is_big", "equals"]:
+          #    print "Trying to call ", curLine.node.name
+          self.output.append(FuncOp(curLine.node.name,[self.getConstOrName(arg) for arg in curLine.args],tmpName))
+      elif isinstance(curLine, InjectFrom):
+          funcName = Name("project_%s"%(curLine.typ))
+          self.output.append(FuncOp(funcName,[self.getConstOrName(curLine.arg)],tmpName))
+      elif isinstance(curLine, ProjectTo):
+          funcName = Name("inject_%s"%(curLine.typ))
+          self.output.append(FuncOp(funcName,[self.getConstOrName(curLine.arg.name)],tmpName))
+          #self.output.append(FuncOp(funcName,[curLine.arg],tmpName))
+      elif isinstance(curLine,Not):
+          self.output.append(BinaryOp("movl", NameOp(curLine.expr),tmpName))
+          self.output.append(UnaryOp("notl",tmpName))
+      elif isinstance(curLine,Compare):
+          self.output.append(CompareOp(self.getConstOrName(curLine.expr),self.getConstOrName(curLine.ops[0][1])))
+          (neCmp,endCmp) = self.getCmpLabel()
+          
+          self.output.append(JumpOp("jne",neCmp))
+          self.output.append(BinaryOp("movl", ConstOp(1) ,tmpName))
+          self.output.append(JumpOp("jne",endCmp))
+          self.output.append(ClauseOp(neCmp))
+          self.output.append(BinaryOp("movl", ConstOp(0) ,tmpName))
+          self.output.append(ClauseOp(endCmp))
+
+      else:
+          print "Assign Error:",curLine 
 
   def getConstOrName(self, line):
     if isinstance(line, Name):
       return  NameOp(line.name)
-    else:
+    elif isinstance(line,Name):
       return ConstOp(line.value)
-
-  def getConstOrNamePrint(self, line):
-    if isinstance(line, Name):
-      return "\tmovl -%d(%%ebp), %%eax\n" % self.getAddr(line.name)
     else:
-      return "\tmovl $%d, %%eax" % line.value
+      return None
 
   def getAddr(self,varName):
     if varName not in self.varLookup:
       self.varLookup[varName] = self.varCounter
       self.varCounter+=4
     return self.varLookup[varName]
-
-  def endStack(self):
-    self.output+=("\tmovl $0,%eax\n")
-    self.output+=("\tleave\n")
-    self.output+=("\tret\n")
-
+  def getCmpLabel(self):
+      neCmp = NameOp('ne_cmp'+`self.cmp`)
+      endCmp = NameOp('end_cmp'+`self.cmp`)
+      self.cmp += 1
+      return (neCmp,endCmp)
 
 if __name__ == "__main__":
   with open (sys.argv[1], "r") as myfile:
@@ -227,17 +263,12 @@ if __name__ == "__main__":
   #print ast
 
   parser = flatParser(ast)
-  #print inStr, "\n"
 
   parser.flatAst(parser.ast)
   parser.printFlat()
   to86 = pyTo86(parser.flat,parser.tmp)
   to86.convert86()
-  #to86.endStack()
-  #print "\n"
-  #for line in to86.output:
-  #  print line
-  #print to86.output
+  for line in to86.output: print line 
   ig = InterferenceGraph()
 
   output = ig.createLiveness(to86.output)
