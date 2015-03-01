@@ -96,8 +96,9 @@ class flatParser:
         return newTmp
 
     elif isinstance(ast,List):
-        print ast.nodes
-        return Const(777777777777777)
+        newTmp = self.getNewTmp()
+        self.flat.append(Assign(newTmp,List([self.flatAst(e) for e in ast.nodes])))
+        return newTmp
 
     elif isinstance(ast,Dict):
         print self.items
@@ -185,6 +186,7 @@ class pyTo86:
     self.varLookup = {}
     self.varCounter = 4
     self.cmp =0
+    self.flat = 0
 
   def convert86(self):
       for curLine in self.flatAst:
@@ -249,11 +251,25 @@ class pyTo86:
           self.output.append(BinaryOp("cmp",self.getConstOrName(curLine.expr),self.getConstOrName(curLine.ops[0][1])))
           self.output.append(JumpOp("jne",neCmp))
           self.output.append(BinaryOp("movl", ConstOp(1) ,tmpName))
-          self.output.append(JumpOp("jne",endCmp))
+          self.output.append(JumpOp("jmp",endCmp))
           self.output.append(ClauseOp(neCmp))
           self.output.append(BinaryOp("movl", ConstOp(0) ,tmpName))
           self.output.append(ClauseOp(endCmp))
-
+      elif isinstance(curLine,List):
+          elem =0
+          lenTmp = self.getFlatTmp()
+          cursorTmp = self.getFlatTmp()
+          projectTmp = self.getFlatTmp()
+          self.convertLine(InjectFrom('int', Const(len(curLine.nodes))),lenTmp)
+          self.output.append(FuncOp(NameOp("create_list"),[lenTmp],tmpName))
+          self.convertLine(InjectFrom('big', Name(tmpName.name)),projectTmp)
+          print cursorTmp
+          for e in curLine.nodes:
+              self.convertLine(InjectFrom('int', Const(elem)), cursorTmp)
+              #self.convertLine(InjectFrom('int', Const(elem)), self.getConstOrName(e))
+              self.output.append(FuncOp(NameOp("set_subscript"),[projectTmp,cursorTmp,self.getConstOrName(e)],self.getConstOrName(e)))
+              elem+=1
+          print curLine
       else:
           print "Assign Error:",curLine 
 
@@ -263,26 +279,28 @@ class pyTo86:
     elif isinstance(line,Const):
       return ConstOp(line.value)
     else:
-      #print line.fdsaf
+      print "convert None Type"
       return None
 
-  def getAddr(self,varName):
-    if varName not in self.varLookup:
-      self.varLookup[varName] = self.varCounter
-      self.varCounter+=4
-    return self.varLookup[varName]
   def getCmpLabel(self):
       neCmp = NameOp('ne_cmp'+`self.cmp`)
       endCmp = NameOp('end_cmp'+`self.cmp`)
       self.cmp += 1
       return (neCmp,endCmp)
+  def getFlatTmp(self):
+      flatTmp = NameOp('flat '+`self.flat`)
+      self.flat += 1
+      return flatTmp
 
 if __name__ == "__main__":
   with open (sys.argv[1], "r") as myfile:
     inStr=myfile.read()
 
+  f = open('/dev/null', 'w')
+  sys.stdout = f
+
   ast = compiler.parse(inStr)
-  #print ast
+  print ast
   myExplicate = ExplicateParser(ast)
   ast = myExplicate.explicate(ast)
   #rint ast
@@ -290,10 +308,10 @@ if __name__ == "__main__":
   parser = flatParser(ast)
 
   parser.flatAst(parser.ast)
-  #parser.printFlat()
+  parser.printFlat()
   to86 = pyTo86(parser.flat,parser.tmp)
   to86.convert86()
-  #for line in to86.output: print line 
+  for line in to86.output: print line 
   ig = InterferenceGraph()
 
   output = ig.createLiveness(to86.output)
