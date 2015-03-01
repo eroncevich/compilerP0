@@ -108,7 +108,7 @@ class ExplicateParser:
                 rightBig = IsType('big', name2)
 
                 ifExp = IfExp(self.explicate(And([leftWord,rightWord])),InjectFrom('bool', Compare(name1,[(op, name2)])),
-                IfExp(self.explicate(And([leftBig,rightBig])),InjectFrom('bool',CallFunc(funcName,[ProjectTo('big',name1),ProjectTo('big',name2)])), InjectFrom('bool', Const(0))))
+                IfExp(self.explicate(And([leftBig,rightBig])),InjectFrom('int',CallFunc(funcName,[ProjectTo('big',name1),ProjectTo('big',name2)])), InjectFrom('bool', Const(0))))
 
                 return Let(name1,l,Let(name2,r,ifExp))
             elif op == 'is':
@@ -123,15 +123,15 @@ class ExplicateParser:
             r = self.explicate(ast.nodes[1])
 
             name = self.getNewTmp()
-
-            return Let(name, l, IfExp(ProjectTo('bool', CallFunc(Name('is_true'), [name])), name, r))
+            ifExp = IfExp(InjectFrom('bool',CallFunc(Name('is_true'), [name])), name, r)
+            return Let(name, l, ifExp)
         elif isinstance(ast,And):
             l = self.explicate(ast.nodes[0])
             r = self.explicate(ast.nodes[1])
 
             name = self.getNewTmp()
 
-            return Let(name, l, IfExp(ProjectTo('bool', CallFunc(Name('is_true'), [name])), r, name))
+            return Let(name, l, IfExp(InjectFrom('bool',CallFunc(Name('is_true'), [name])), r, name))
 
         elif isinstance(ast,Not):
             return Not(InjectFrom('int', CallFunc(Name('is_true'), [self.explicate(ast.expr)])))

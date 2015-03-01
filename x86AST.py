@@ -133,6 +133,11 @@ class InterferenceGraph:
                         self.live[count].add(line.dest.name)
                     if isinstance(line.src, NameOp):
                         self.live[count].add(line.src.name)
+                elif line.name == "sarl":
+                    if isinstance(line.dest, NameOp):
+                        self.live[count].add(line.dest.name)
+                    if isinstance(line.src, NameOp):
+                        self.live[count].add(line.src.name)
                 else:
                     print "Unsupported Binary Live"
             elif isinstance(line, UnaryOp):
@@ -183,16 +188,17 @@ class InterferenceGraph:
         self.interference['^edx'] = Set([])
         somelen = len(x86code)
         for count in range(0,somelen):
-            print x86code[count],self.live[count]
+            #print x86code[count],self.live[count]
             if isinstance(x86code[count], BinaryOp):
-
-                t = self.getConstOrName(x86code[count].dest)
+                if isinstance(x86code[count].dest,ConstOp):
+                    t = ""
+                else:
+                    t = x86code[count].dest.name
                 s = ""
                 if isinstance(x86code[count].src, NameOp):
                     s = x86code[count].src.name
                 if not self.interference.has_key(t):
                     self.interference[t] = Set([])
-                #line = self.live[count]
                 for var in self.live[count]:
                     if x86code[count].name == "movl":
                         if var != t and var != s:# and t in line:
@@ -201,27 +207,30 @@ class InterferenceGraph:
                         if var != t:# and t in line:
                             addEdge(t,var)
                     elif x86code[count].name == "cmp":
-                        if isinstance(t,NameOp) and var !=t:
+                        if t and var !=t:
                             addEdge(t,var)
                         if s and var !=s:
                             addEdge(s,var)
+                    elif x86code[count].name == "sarl":
+                        if var != t:
+                            addEdge(t,var)
                     else:
                         print "Unsuported Binary interference"
 
-            if isinstance(x86code[count], PrintOp):
+            elif isinstance(x86code[count], PrintOp):
                 callerSave = ['^eax', '^ecx', '^edx']
                 for r in callerSave:
                     addEdge(x86code[count].name.name,r)
                     for var in self.live[count]:
                         addEdge(r,var)
-            if isinstance(x86code[count], UnaryOp):
+            elif isinstance(x86code[count], UnaryOp):
                 t = x86code[count].param.name
                 if not self.interference.has_key(t):
                     self.interference[t] = Set([])
                 for var in self.live[count]:
                     if var!= t:
                         addEdge(t,var)
-            if isinstance(x86code[count], FuncOp): #need to check
+            elif isinstance(x86code[count], FuncOp): #need to check
                 callerSave = ['^eax', '^ecx', '^edx']
                 for r in callerSave:
                     for var in self.live[count]:
@@ -230,6 +239,14 @@ class InterferenceGraph:
                     if isinstance(arg,NameOp):
                         for var in self.live[count]:
                             addEdge(arg.name,var)
+                        for r in callerSave:
+                            addEdge(arg.name,r)
+                for var in self.live[count]:
+                    if var != x86code[count].var.name:
+                            addEdge(x86code[count].var.name,var)
+            else:
+                #print "interference",x86code[count] 
+                pass
         #pprint(self.interference)
         return self.colorGraph(x86code);
 
@@ -377,6 +394,7 @@ class InterferenceGraph:
                 #self.inputLookup[line.var] = '%eax'
                 finalString+="\tcall %s\n" % str(line.name)
                 finalString+="\tmovl %%eax,%s\n"% (self.getArg(line.var,color))
+                finalString+="\taddl $%d, %%esp\n" %(4*len(line.args))
             elif isinstance(line, PrintOp):
                 arg = self.getArg(line.name, color)
                 finalString+="\tpushl %s\n" % arg

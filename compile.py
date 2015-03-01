@@ -22,7 +22,6 @@ class flatParser:
         self.flatAst(stmt)
 
     elif isinstance(ast,Printnl):
-      print "@@@@@@@@@@@@@@"
       child = self.flatAst(ast.nodes[0])
       if isinstance(child, Const):
           newTmp = self.getNewTmp()
@@ -73,12 +72,14 @@ class flatParser:
       return newTmp
 
     elif isinstance(ast,CallFunc):
+      if ast.node.name == "input":
+          ast.node.name = "input_int"
       argFlat = [self.flatAst(arg) for arg in ast.args]
       newTmp = self.getNewTmp()
       self.flat.append(Assign(newTmp, CallFunc(ast.node,argFlat)))
-      #newTmp2 = self.getNewTmp()
-      #self.flat.append(Assign(newTmp2, newTmp))
-      return newTmp
+      newTmp2 = self.getNewTmp()
+      self.flat.append(Assign(newTmp2, newTmp))
+      return newTmp2
 
     elif isinstance(ast,Compare):
       #print ast.expr
@@ -111,7 +112,7 @@ class flatParser:
         condTmp = self.getNewTmp()
         newTmp = self.getNewTmp()
         test = self.flatAst(ast.test)
-        self.flat.append(Assign(condTmp,CallFunc(Name('is_true'), [test])))
+        self.flat.append(Assign(condTmp,self.flatAst(CallFunc(Name('is_true'), [test]))))
 
         (ifName,thenName,endName) = self.getIfTmp()
         #(ifName,elseName,endName) = (Name("if"),Name("then"),Name("if"))
@@ -150,7 +151,7 @@ class flatParser:
         child = self.flatAst(ast.var)
         newTmp = self.getNewTmp()
         funcName = Name("is_%s" % ast.typ )
-        self.flat.append(Assign(newTmp, CallFunc(funcName, [child])))
+        self.flat.append(Assign(newTmp, self.flatAst(CallFunc(funcName, [child]))))
         self.flat.append(Assign(newTmp, InjectFrom('bool',newTmp)))
         return newTmp
     elif isinstance(ast,ThrowErr):
@@ -197,7 +198,7 @@ class pyTo86:
               #self.outout.append(CompareOp())
               if line[0] == "if":
                   condTmp = Name("%s %s" % (line[3],line[4]))
-                  #print condTmp
+                  #print repr(self.getConstOrName(condTmp))
                   self.output.append(BinaryOp("cmp", ConstOp(0),self.getConstOrName(condTmp)))
                   self.output.append(JumpOp("jne",NameOp("then%s"%line[1])))
               elif line[0] == "then":
@@ -226,14 +227,20 @@ class pyTo86:
           #    print "Trying to call ", curLine.node.name
           self.output.append(FuncOp(NameOp(curLine.node.name),[self.getConstOrName(arg) for arg in curLine.args],tmpName))
       elif isinstance(curLine, InjectFrom):
-          funcName = NameOp("inject_%s"%(curLine.typ))
-          self.output.append(FuncOp(funcName,[self.getConstOrName(curLine.arg)],tmpName))
+          if 0:
+              self.output.append(BinaryOp("movl",self.getConstOrName(curLine.arg),tmpName))
+              self.output.append(BinaryOp("sarl",ConstOp(2),tmpName))
+          else:
+              funcName = NameOp("inject_%s"%(curLine.typ))
+              self.output.append(FuncOp(funcName,[self.getConstOrName(curLine.arg)],tmpName))
       elif isinstance(curLine, ProjectTo):
-          funcName = NameOp("project_%s"%(curLine.typ))
-          self.output.append(FuncOp(funcName,[self.getConstOrName(curLine.arg)],tmpName))
-          #self.output.append(FuncOp(funcName,[curLine.arg],tmpName))
+          if curLine.typ == 'int' or curLine.typ == 'bool':
+              self.output.append(BinaryOp("movl",self.getConstOrName(curLine.arg),tmpName))
+              self.output.append(BinaryOp("sarl",ConstOp(2),tmpName))
+          else:
+              funcName = NameOp("project_%s"%(curLine.typ))
+              self.output.append(FuncOp(funcName,[self.getConstOrName(curLine.arg)],tmpName))
       elif isinstance(curLine,Not):
-          print curLine
           self.output.append(BinaryOp("movl", self.getConstOrName(curLine.expr),tmpName))
           self.output.append(UnaryOp("notl",tmpName))
       elif isinstance(curLine,Compare):
@@ -278,13 +285,12 @@ if __name__ == "__main__":
   #print ast
   myExplicate = ExplicateParser(ast)
   ast = myExplicate.explicate(ast)
-  print "@@@@@@@@@@"
-  #print ast
+  #rint ast
 
   parser = flatParser(ast)
 
   parser.flatAst(parser.ast)
-  parser.printFlat()
+  #parser.printFlat()
   to86 = pyTo86(parser.flat,parser.tmp)
   to86.convert86()
   #for line in to86.output: print line 

@@ -479,6 +479,10 @@ static int equal_pyobj(pyobj a, pyobj b)
   return 0;
 }
 
+int equals(void* a, void* b)
+{
+  return equal_pyobj(*(pyobj*)a, *(pyobj*)b);
+}
 
 static int equal_any(void* a, void* b)
 {

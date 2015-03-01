@@ -121,6 +121,7 @@ pyobj get_subscript(pyobj c, pyobj key);
 big_pyobj* add(big_pyobj* a, big_pyobj* b);
 int equal(big_pyobj* a, big_pyobj* b);
 int not_equal(big_pyobj* x, big_pyobj* y);
+int equals(void* a, void* b);
 
 big_pyobj* create_closure(void* fun_ptr, pyobj free_vars);
 void* get_fun_ptr(pyobj);
