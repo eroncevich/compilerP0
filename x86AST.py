@@ -155,10 +155,10 @@ class InterferenceGraph:
                 else:
                     print "Unsupported Print Live"
             elif isinstance(line,FuncOp):
+                self.live[count] -= Set([line.var.name])
                 for arg in line.args:
                     if isinstance(arg,NameOp):
                         self.live[count].add(arg.name)
-                self.live[count] -= Set([line.var.name])
             elif isinstance(line,JumpOp):
                 if line.name == "jmp":
                     self.live[count] = labels[line.label.name]
@@ -188,7 +188,7 @@ class InterferenceGraph:
         self.interference['^edx'] = Set([])
         somelen = len(x86code)
         for count in range(0,somelen):
-            print x86code[count],self.live[count]
+            #print x86code[count],self.live[count]
             if isinstance(x86code[count], BinaryOp):
                 if isinstance(x86code[count].dest,ConstOp):
                     t = ""

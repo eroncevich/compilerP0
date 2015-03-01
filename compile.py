@@ -101,14 +101,18 @@ class flatParser:
         return newTmp
 
     elif isinstance(ast,Dict):
-        print self.items
-        return Const(777777777777777)
+        print ast.items
+        newTmp = self.getNewTmp()
+        self.flat.append(Assign(newTmp,Dict([(self.flatAst(e), self.flatAst(l)) for e,l in ast.items])))
+        return newTmp
 
     elif isinstance(ast,Subscript):
-        print self.expr
-        print self.flags
-        print self.subs
-        return Const(777777777777777)
+        bigObj= self.flatAst(ast.expr)
+        child = self.flatAst(ast.subs[0])
+        newTmp = self.getNewTmp()
+        self.flat.append(Assign(newTmp,Subscript(bigObj,ast.flags,[child])))
+        return newTmp
+
     elif isinstance(ast,IfExp):
         condTmp = self.getNewTmp()
         newTmp = self.getNewTmp()
@@ -196,7 +200,7 @@ class pyTo86:
               self.output.append(PrintOp(self.getConstOrName(curLine.nodes[0])))
           elif isinstance(curLine,Name):
               line = curLine.name.split()
-              #p#rint line
+              #print line
               #self.outout.append(CompareOp())
               if line[0] == "if":
                   condTmp = Name("%s %s" % (line[3],line[4]))
@@ -263,13 +267,24 @@ class pyTo86:
           self.convertLine(InjectFrom('int', Const(len(curLine.nodes))),lenTmp)
           self.output.append(FuncOp(NameOp("create_list"),[lenTmp],tmpName))
           self.convertLine(InjectFrom('big', Name(tmpName.name)),projectTmp)
-          print cursorTmp
           for e in curLine.nodes:
               self.convertLine(InjectFrom('int', Const(elem)), cursorTmp)
-              #self.convertLine(InjectFrom('int', Const(elem)), self.getConstOrName(e))
               self.output.append(FuncOp(NameOp("set_subscript"),[projectTmp,cursorTmp,self.getConstOrName(e)],self.getConstOrName(e)))
               elem+=1
-          print curLine
+      elif isinstance(curLine,Dict):
+          #elem =0
+          #print curLine
+          #cursorTmp = self.getFlatTmp()
+          projectTmp = self.getFlatTmp()
+          self.output.append(FuncOp(NameOp("create_dict"),[],tmpName))
+          self.convertLine(InjectFrom('big', Name(tmpName.name)),projectTmp)
+          for l,r in curLine.items:
+          #    self.convertLine(InjectFrom('int', Const(elem)), cursorTmp)
+              self.output.append(FuncOp(NameOp("set_subscript"),[projectTmp,self.getConstOrName(l),self.getConstOrName(r)],self.getConstOrName(r)))
+      elif isinstance(curLine,Subscript):
+          if curLine.flags == 'OP_APPLY':
+              print curLine
+              self.output.append(FuncOp(NameOp("get_subscript"),[self.getConstOrName(curLine.expr),self.getConstOrName(curLine.subs[0])],tmpName))
       else:
           print "Assign Error:",curLine 
 
@@ -297,13 +312,13 @@ if __name__ == "__main__":
     inStr=myfile.read()
 
   f = open('/dev/null', 'w')
-  sys.stdout = f
+  #sys.stdout = f #Uncomment to turn off output
 
   ast = compiler.parse(inStr)
   print ast
   myExplicate = ExplicateParser(ast)
   ast = myExplicate.explicate(ast)
-  #rint ast
+  print ast
 
   parser = flatParser(ast)
 
@@ -311,7 +326,7 @@ if __name__ == "__main__":
   parser.printFlat()
   to86 = pyTo86(parser.flat,parser.tmp)
   to86.convert86()
-  for line in to86.output: print line 
+  #for line in to86.output: print line 
   ig = InterferenceGraph()
 
   output = ig.createLiveness(to86.output)

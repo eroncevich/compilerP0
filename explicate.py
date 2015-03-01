@@ -137,10 +137,10 @@ class ExplicateParser:
             return Not(InjectFrom('int', CallFunc(Name('is_true'), [self.explicate(ast.expr)])))
 
         elif isinstance(ast,List):
-            return InjectFrom('int',List([self.explicate(e) for e in ast.nodes]))
+            return InjectFrom('big',List([self.explicate(e) for e in ast.nodes]))
 
         elif isinstance(ast,Dict):
-            return Dict([(self.explicate(e), self.explicate(l)) for e,l in ast.items])
+            return InjectFrom('big',Dict([(self.explicate(e), self.explicate(l)) for e,l in ast.items]))
 
         elif isinstance(ast,Subscript):
             return Subscript(self.explicate(ast.expr), ast.flags, [self.explicate(ast.subs[0])])
