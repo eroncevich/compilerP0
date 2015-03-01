@@ -101,18 +101,18 @@ class ExplicateParser:
             op = ast.ops[0][0]
 
             if op == '==' or op == '!=':
-                funcName = Name('equals' if op == '==' else 'not_equals')
+                funcName = Name('equal' if op == '==' else 'not_equal')
                 leftWord = (Or([IsType('int',name1),IsType('bool',name1)]))
                 rightWord = (Or([IsType('int',name2),IsType('bool',name2)]))
                 leftBig = IsType('big', name1)
                 rightBig = IsType('big', name2)
 
-                ifExp = IfExp(self.explicate(And([leftWord,rightWord])),InjectFrom('bool', Compare(name1,[(op, name2)])),
-                IfExp(self.explicate(And([leftBig,rightBig])),InjectFrom('int',CallFunc(funcName,[ProjectTo('big',name1),ProjectTo('big',name2)])), InjectFrom('bool', Const(0))))
+                ifExp = IfExp(self.explicate(And([leftWord,rightWord])),InjectFrom('bool', Compare(ProjectTo('int',name1),[(op, ProjectTo('int',name2))])),
+                IfExp(self.explicate(And([leftBig,rightBig])),InjectFrom('bool',CallFunc(funcName,[ProjectTo('big',name1),ProjectTo('big',name2)])), InjectFrom('bool', Const(0))))
 
                 return Let(name1,l,Let(name2,r,ifExp))
             elif op == 'is':
-                return Compare(l,[(op,r)])
+                return InjectFrom('bool',Compare(l,[(op,r)]))
             else:
                 print "Error Compare"
                 exit()
@@ -134,7 +134,9 @@ class ExplicateParser:
             return Let(name, l, IfExp(InjectFrom('bool',CallFunc(Name('is_true'), [name])), r, name))
 
         elif isinstance(ast,Not):
-            return Not(InjectFrom('int', CallFunc(Name('is_true'), [self.explicate(ast.expr)])))
+            return InjectFrom('bool',Not(CallFunc(Name('is_true'), [self.explicate(ast.expr)])))
+            #compare = Compare(CallFunc(Name('is_true'), [self.explicate(ast.expr)], self.explicate(Const(0))))
+            #return InjectFrom('bool', )
 
         elif isinstance(ast,List):
             return InjectFrom('big',List([self.explicate(e) for e in ast.nodes]))
