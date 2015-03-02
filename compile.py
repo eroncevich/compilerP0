@@ -121,7 +121,6 @@ class flatParser:
         self.flat.append(Assign(condTmp,self.flatAst(CallFunc(Name('is_true'), [test]))))
 
         (ifName,thenName,endName) = self.getIfTmp()
-        #(ifName,elseName,endName) = (Name("if"),Name("then"),Name("if"))
 
         self.flat.append(Name(ifName.name +' , '+condTmp.name))
 
@@ -197,8 +196,13 @@ class pyTo86:
       for curLine in self.flatAst:
           if isinstance(curLine, Assign):
               if isinstance(curLine.nodes,Subscript):
+                  print curLine.nodes
                   subs = self.getFlatTmp()
                   self.convertLine(curLine.expr, subs)
+                  #self.output.append(FuncOp(NameOp("set_subscript"),[projectTmp,self.getConstOrName(l),self.getConstOrName(r)],self.getConstOrName(r)))
+                  #self.convertLine(InjectFrom('big', Name(tmpName.name)),projectTmp)
+                  print "Added",self.getConstOrName(curLine.nodes.subs[0])
+                  #print [self.getConstOrName(curLine.nodes.expr),self.getConstOrName(curLine.nodes.subs[0]),subs]
                   self.output.append(FuncOp(NameOp("set_subscript"),[self.getConstOrName(curLine.nodes.expr),self.getConstOrName(curLine.nodes.subs[0]),subs],subs))
               else:
                   self.convertLine(curLine.expr, NameOp(curLine.nodes.name))
@@ -282,9 +286,11 @@ class pyTo86:
           self.convertLine(InjectFrom('big', Name(tmpName.name)),projectTmp)
           for l,r in curLine.items:
               self.output.append(FuncOp(NameOp("set_subscript"),[projectTmp,self.getConstOrName(l),self.getConstOrName(r)],self.getConstOrName(r)))
+              #self.output.append(FuncOp(NameOp("set_subscript"),[projectTmp,self.getConstOrName(l),ConstOp(16)],self.getConstOrName(r)))
       elif isinstance(curLine,Subscript):
           if curLine.flags == 'OP_APPLY':
               self.output.append(FuncOp(NameOp("get_subscript"),[self.getConstOrName(curLine.expr),self.getConstOrName(curLine.subs[0])],tmpName))
+
       else:
           print "Assign Error:",curLine 
 

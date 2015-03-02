@@ -238,12 +238,13 @@ class InterferenceGraph:
                 for arg in x86code[count].args:
                     if isinstance(arg,NameOp):
                         for var in self.live[count]:
-                            addEdge(arg.name,var)
+                            if var != arg.name:
+                                addEdge(arg.name,var)
                         for r in callerSave:
                             addEdge(arg.name,r)
                 for var in self.live[count]:
                     if var != x86code[count].var.name:
-                            addEdge(x86code[count].var.name,var)
+                        addEdge(x86code[count].var.name,var)
             else:
                 #print "interference",x86code[count] 
                 pass

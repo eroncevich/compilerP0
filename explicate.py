@@ -49,7 +49,7 @@ class ExplicateParser:
         elif isinstance(ast,Printnl):
             return Printnl([self.explicate(ast.nodes[0])],ast.dest)
         elif isinstance(ast,Assign):
-            return Assign([ast.nodes[0]], self.explicate(ast.expr))
+            return Assign([self.explicate(ast.nodes[0])], self.explicate(ast.expr))
         elif isinstance(ast,AssName):
             return ast
         elif isinstance(ast,Discard):
@@ -75,7 +75,7 @@ class ExplicateParser:
             leftBig = IsType('big', name1)
             rightBig = IsType('big', name2)
             ifExp = IfExp(self.explicate(And([leftWord,rightWord])),InjectFrom('int', Add((ProjectTo('int',name1),ProjectTo('int',name2)))),
-                IfExp(self.explicate(And([leftBig,rightBig])),InjectFrom('big',(Add((ProjectTo('big',name1),ProjectTo('big',name2))))), ThrowErr('add_error')))
+                IfExp(self.explicate(And([leftBig,rightBig])),InjectFrom('big',CallFunc(Name("add"),[ProjectTo('big',name1),ProjectTo('big',name2)])), ThrowErr('add_error')))
 
             return Let(name1, l,Let(name2,r,ifExp))
 
@@ -145,6 +145,7 @@ class ExplicateParser:
             return InjectFrom('big',Dict([(self.explicate(e), self.explicate(l)) for e,l in ast.items]))
 
         elif isinstance(ast,Subscript):
+            print self.explicate(ast.subs[0])
             return Subscript(self.explicate(ast.expr), ast.flags, [self.explicate(ast.subs[0])])
 
         elif isinstance(ast,IfExp):
