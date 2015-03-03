@@ -152,6 +152,11 @@ class ExplicateParser:
             return IfExp(self.explicate(ast.test), self.explicate(ast.then), self.explicate(ast.else_))
         elif isinstance(ast,IsType):
             return IsType(ast.typ,self.explicate(ast.var))
+        elif isinstance(ast,If):
+            print "if",ast.tests[0][0]
+            print "then", ast.tests[0][1]
+            print "else", ast.else_
+            return If([(self.explicate(ast.tests[0][0]), self.explicate(ast.tests[0][1]))], self.explicate(ast.else_))
         else:
           print "Error:",ast
     def getNewTmp(self):

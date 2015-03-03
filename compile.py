@@ -134,6 +134,28 @@ class flatParser:
 
         self.flat.append(endName)
         return newTmp
+    elif isinstance(ast,If):
+        #print "if",ast.tests[0][0]
+        #    print "then", ast.tests[0][1]
+        #    print "else", ast.else_
+        condTmp = self.getNewTmp()
+        newTmp = self.getNewTmp()
+        test = self.flatAst(ast.tests[0][0])
+        self.flat.append(Assign(condTmp,self.flatAst(CallFunc(Name('is_true'), [test]))))
+
+        (ifName,thenName,endName) = self.getIfTmp()
+
+        self.flat.append(Name(ifName.name +' , '+condTmp.name))
+
+        else_ = self.flatAst(ast.else_)
+        #self.flat.append(Assign(newTmp,else_))
+
+        self.flat.append(thenName)
+        then = self.flatAst(ast.tests[0][1])
+        #self.flat.append(Assign(newTmp,then))
+
+        self.flat.append(endName)
+        return None #Should be a Stmt
     elif isinstance(ast,InjectFrom):
         child = self.flatAst(ast.arg)
         newTmp = self.getNewTmp()
@@ -300,7 +322,7 @@ class pyTo86:
     elif isinstance(line,Const):
       return ConstOp(line.value)
     else:
-      print "convert None Type"
+      print "convert None Type", line
       return None
 
   def getCmpLabel(self):
