@@ -174,11 +174,19 @@ class flatParser:
         child = self.flatAst(ast.body)
         self.flat.append(Assign(newTmp1,child))
         return newTmp1
+    # elif isinstance(ast,IsType):
+    #     child = self.flatAst(ast.var[0])
+    #     newTmp = self.getNewTmp()
+    #     funcName = Name("is_%s" % ast.typ )
+    #     self.flat.append(Assign(newTmp, self.flatAst(CallFunc(funcName, [child]))))
+    #     self.flat.append(Assign(newTmp, InjectFrom('bool',newTmp)))
+    #     return newTmp
     elif isinstance(ast,IsType):
-        child = self.flatAst(ast.var)
+        childs = [self.flatAst(e) for e in ast.var]
         newTmp = self.getNewTmp()
-        funcName = Name("is_%s" % ast.typ )
-        self.flat.append(Assign(newTmp, self.flatAst(CallFunc(funcName, [child]))))
+        #funcName = Name("is_%s" % ast.typ )
+        #self.flat.append(Assign(newTmp, self.flatAst(CallFunc(funcName, [child]))))
+        self.flat.append(Assign(newTmp, IsType(ast.typ, childs)))
         self.flat.append(Assign(newTmp, InjectFrom('bool',newTmp)))
         return newTmp
     elif isinstance(ast,ThrowErr):
@@ -218,13 +226,8 @@ class pyTo86:
       for curLine in self.flatAst:
           if isinstance(curLine, Assign):
               if isinstance(curLine.nodes,Subscript):
-                  print curLine.nodes
                   subs = self.getFlatTmp()
                   self.convertLine(curLine.expr, subs)
-                  #self.output.append(FuncOp(NameOp("set_subscript"),[projectTmp,self.getConstOrName(l),self.getConstOrName(r)],self.getConstOrName(r)))
-                  #self.convertLine(InjectFrom('big', Name(tmpName.name)),projectTmp)
-                  print "Added",self.getConstOrName(curLine.nodes.subs[0])
-                  #print [self.getConstOrName(curLine.nodes.expr),self.getConstOrName(curLine.nodes.subs[0]),subs]
                   self.output.append(FuncOp(NameOp("set_subscript"),[self.getConstOrName(curLine.nodes.expr),self.getConstOrName(curLine.nodes.subs[0]),subs],subs))
               else:
                   self.convertLine(curLine.expr, NameOp(curLine.nodes.name))
@@ -275,7 +278,6 @@ class pyTo86:
               funcName = NameOp("project_%s"%(curLine.typ))
               self.output.append(FuncOp(funcName,[self.getConstOrName(curLine.arg)],tmpName))
       elif isinstance(curLine,Not):
-          print curLine
           self.output.append(BinaryOp("movl", self.getConstOrName(curLine.expr),tmpName))
           self.output.append(UnaryOp("notl",tmpName))
           self.output.append(BinaryOp("addl",ConstOp(2), tmpName))
@@ -312,9 +314,26 @@ class pyTo86:
       elif isinstance(curLine,Subscript):
           if curLine.flags == 'OP_APPLY':
               self.output.append(FuncOp(NameOp("get_subscript"),[self.getConstOrName(curLine.expr),self.getConstOrName(curLine.subs[0])],tmpName))
+      elif isinstance(curLine,IsType):
+          #print "majesty", curLine.var[0]
+          maskTmp = self.getFlatTmp()
+          self.output.append(BinaryOp("movl", self.getConstOrName(curLine.var[0]),maskTmp))
+          self.output.append(BinaryOp("andl",ConstOp(3),maskTmp))
+          
+          if curLine.typ == "int":
+              self.output.append(BinaryOp("cmp",ConstOp(0),maskTmp))
+          if curLine.typ == "bool":
+              self.output.append(BinaryOp("cmp",ConstOp(1),maskTmp))
+          if curLine.typ == "big":
+              self.output.append(BinaryOp("cmp",ConstOp(3),maskTmp))
+          self.output.append(BinaryOp("movl", ConstOp(1),maskTmp))
+          self.output.append(BinaryOp("movl",ConstOp(0),tmpName))
+          self.output.append(BinaryOp("cmove",maskTmp,tmpName))
+          #need to implement cmovl
 
       else:
-          print "Assign Error:",curLine 
+          #print "Assign Error:",curLine 
+          pass
 
   def getConstOrName(self, line):
     if isinstance(line, Name):
@@ -340,7 +359,7 @@ if __name__ == "__main__":
     inStr=myfile.read()
 
   f = open('/dev/null', 'w')
-  sys.stdout = f #Uncomment to turn off output
+  #sys.stdout = f #Uncomment to turn off output
 
   ast = compiler.parse(inStr)
   print ast

@@ -123,7 +123,7 @@ class InterferenceGraph:
                         self.live[count].add(line.src.name)
                     if isinstance(line.dest, NameOp):
                         self.live[count].add(line.dest.name)
-                elif line.name == "movl":
+                elif line.name == "movl" or line.name == "cmove":
                     if isinstance(line.dest, NameOp):
                         self.live[count] = self.live[count] - Set([line.dest.name])
                     if isinstance(line.src, NameOp):
@@ -134,6 +134,11 @@ class InterferenceGraph:
                     if isinstance(line.src, NameOp):
                         self.live[count].add(line.src.name)
                 elif line.name == "sarl":
+                    if isinstance(line.dest, NameOp):
+                        self.live[count].add(line.dest.name)
+                    if isinstance(line.src, NameOp):
+                        self.live[count].add(line.src.name)
+                elif line.name == "andl":
                     if isinstance(line.dest, NameOp):
                         self.live[count].add(line.dest.name)
                     if isinstance(line.src, NameOp):
@@ -188,7 +193,7 @@ class InterferenceGraph:
         self.interference['^edx'] = Set([])
         somelen = len(x86code)
         for count in range(0,somelen):
-            print x86code[count],self.live[count]
+            #print x86code[count],self.live[count]
             if isinstance(x86code[count], BinaryOp):
                 if isinstance(x86code[count].dest,ConstOp):
                     t = ""
@@ -200,11 +205,11 @@ class InterferenceGraph:
                 if not self.interference.has_key(t):
                     self.interference[t] = Set([])
                 for var in self.live[count]:
-                    if x86code[count].name == "movl":
-                        if var != t and var != s:# and t in line:
+                    if x86code[count].name == "movl" or x86code[count].name == "cmove":
+                        if var != t and var != s:
                             addEdge(t,var)
                     elif x86code[count].name == "addl":
-                        if var != t:# and t in line:
+                        if var != t:
                             addEdge(t,var)
                     elif x86code[count].name == "cmp":
                         if t and var !=t:
@@ -214,6 +219,10 @@ class InterferenceGraph:
                     elif x86code[count].name == "sarl":
                         if var != t:
                             addEdge(t,var)
+                    elif x86code[count].name == "andl": #should force to use eax
+                        if var != t:
+                            addEdge(t,var)
+                            addEdge('^eax',var)
                     else:
                         print "Unsuported Binary interference"
 
@@ -230,21 +239,26 @@ class InterferenceGraph:
                 for var in self.live[count]:
                     if var!= t:
                         addEdge(t,var)
-            elif isinstance(x86code[count], FuncOp): #need to check
+            elif isinstance(x86code[count], FuncOp): #needs possibly unnecessary extra edges
                 callerSave = ['^eax', '^ecx', '^edx']
+                t= x86code[count].var.name
+                if not self.interference.has_key(t):
+                    self.interference[t] = Set([])
                 for r in callerSave:
                     for var in self.live[count]:
-                        addEdge(r,var)
+                        if var != t:
+                            addEdge(r,var)
                 for arg in x86code[count].args:
                     if isinstance(arg,NameOp):
                         for var in self.live[count]:
                             if var != arg.name:
                                 addEdge(arg.name,var)
                         for r in callerSave:
-                            addEdge(arg.name,r)
+                            if arg.name != x86code[count].var.name:
+                                addEdge(arg.name,r)
                 for var in self.live[count]:
-                    if var != x86code[count].var.name:
-                        addEdge(x86code[count].var.name,var)
+                    if var != t:
+                        addEdge(t,var)
             else:
                 #print "interference",x86code[count] 
                 pass
@@ -404,10 +418,8 @@ class InterferenceGraph:
             elif isinstance(line, BinaryOp):
                 leftArg = self.getArg(line.src, color)
                 rightArg = self.getArg(line.dest, color)
-                #if line.name == "movl" and rightArg == leftArg:
-                #    continue
-                #else:
-                    #print line.src.name, line.dest
+                # if line.name == "andl":
+                #     print leftArg,line.dest
                 finalString+="\t%s %s, %s\n" %(line.name, leftArg,rightArg)
 
             elif isinstance(line,UnaryOp):

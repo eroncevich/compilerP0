@@ -70,12 +70,15 @@ class ExplicateParser:
             name2 = self.getNewTmp()
 
 
-            leftWord = (Or([IsType('int',name1),IsType('bool',name1)]))
-            rightWord = (Or([IsType('int',name2),IsType('bool',name2)]))
-            leftBig = IsType('big', name1)
-            rightBig = IsType('big', name2)
+            leftWord = (Or([IsType('int',[name1]),IsType('bool',[name1])]))
+            rightWord = (Or([IsType('int',[name2]),IsType('bool',[name2])]))
+            #correctType = IsType('small',[name1,name2])
+            leftBig = IsType('big', [name1])
+            rightBig = IsType('big', [name2])
             ifExp = IfExp(self.explicate(And([leftWord,rightWord])),InjectFrom('int', Add((ProjectTo('int',name1),ProjectTo('int',name2)))),
                 IfExp(self.explicate(And([leftBig,rightBig])),InjectFrom('big',CallFunc(Name("add"),[ProjectTo('big',name1),ProjectTo('big',name2)])), ThrowErr('add_error')))
+            #ifExp = IfExp(correctType,InjectFrom('int', Add((ProjectTo('int',name1),ProjectTo('int',name2)))),
+            #    IfExp(self.explicate(And([leftBig,rightBig])),InjectFrom('big',CallFunc(Name("add"),[ProjectTo('big',name1),ProjectTo('big',name2)])), ThrowErr('add_error')))
 
             return Let(name1, l,Let(name2,r,ifExp))
 
@@ -83,7 +86,7 @@ class ExplicateParser:
             child = self.explicate(ast.expr)
             name = self.getNewTmp()
 
-            orStmt= self.explicate(Or([IsType('int',name),IsType('bool',name)]))
+            orStmt= self.explicate(Or([IsType('int',[name]),IsType('bool',[name])]))
 
             ifExp = IfExp(orStmt,InjectFrom('int', UnarySub(ProjectTo('int',name))), ThrowErr('unarysub_error'))
             return Let(name,child,ifExp)
@@ -102,10 +105,10 @@ class ExplicateParser:
 
             if op == '==' or op == '!=':
                 funcName = Name('equal' if op == '==' else 'not_equal')
-                leftWord = (Or([IsType('int',name1),IsType('bool',name1)]))
-                rightWord = (Or([IsType('int',name2),IsType('bool',name2)]))
-                leftBig = IsType('big', name1)
-                rightBig = IsType('big', name2)
+                leftWord = (Or([IsType('int',[name1]),IsType('bool',[name1])]))
+                rightWord = (Or([IsType('int',[name2]),IsType('bool',[name2])]))
+                leftBig = IsType('big', [name1])
+                rightBig = IsType('big', [name2])
 
                 ifExp = IfExp(self.explicate(And([leftWord,rightWord])),InjectFrom('bool', Compare(ProjectTo('int',name1),[(op, ProjectTo('int',name2))])),
                 IfExp(self.explicate(And([leftBig,rightBig])),InjectFrom('bool',CallFunc(funcName,[ProjectTo('big',name1),ProjectTo('big',name2)])), InjectFrom('bool', Const(0))))
@@ -151,11 +154,8 @@ class ExplicateParser:
         elif isinstance(ast,IfExp):
             return IfExp(self.explicate(ast.test), self.explicate(ast.then), self.explicate(ast.else_))
         elif isinstance(ast,IsType):
-            return IsType(ast.typ,self.explicate(ast.var))
+            return IsType(ast.typ,[self.explicate(e) for e in ast.var])
         elif isinstance(ast,If):
-            print "if",ast.tests[0][0]
-            print "then", ast.tests[0][1]
-            print "else", ast.else_
             return If([(self.explicate(ast.tests[0][0]), self.explicate(ast.tests[0][1]))], self.explicate(ast.else_))
         else:
           print "Error:",ast
