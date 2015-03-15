@@ -55,12 +55,13 @@ class ExplicateParser:
         elif isinstance(ast,Discard):
             return Discard(self.explicate(ast.expr))
         elif isinstance(ast,Const):
-            return InjectFrom('int', ast)
+            #return InjectFrom('int', ast)
+            return Const(ast.value*4)
         elif isinstance(ast,Name):
-            if ast.name == "True":
-                return InjectFrom('bool', Const(1))
-            elif ast.name == "False":
-                return InjectFrom('bool', Const(0))
+            # if ast.name == "True":
+            #     return InjectFrom('bool', Const(1))
+            # elif ast.name == "False":
+            #     return InjectFrom('bool', Const(0))
             return ast
         elif isinstance(ast,Add):
             l = self.explicate(ast.left)
@@ -70,15 +71,16 @@ class ExplicateParser:
             name2 = self.getNewTmp()
 
 
-            leftWord = (Or([IsType('int',[name1]),IsType('bool',[name1])]))
-            rightWord = (Or([IsType('int',[name2]),IsType('bool',[name2])]))
-            #correctType = IsType('small',[name1,name2])
-            leftBig = IsType('big', [name1])
-            rightBig = IsType('big', [name2])
-            ifExp = IfExp(self.explicate(And([leftWord,rightWord])),InjectFrom('int', Add((ProjectTo('int',name1),ProjectTo('int',name2)))),
-                IfExp(self.explicate(And([leftBig,rightBig])),InjectFrom('big',CallFunc(Name("add"),[ProjectTo('big',name1),ProjectTo('big',name2)])), ThrowErr('add_error')))
-            #ifExp = IfExp(correctType,InjectFrom('int', Add((ProjectTo('int',name1),ProjectTo('int',name2)))),
+            #leftWord = (Or([IsType('int',[name1]),IsType('bool',[name1])]))
+            #rightWord = (Or([IsType('int',[name2]),IsType('bool',[name2])]))
+            correctType = IsType('small',[name1,name2])
+            correctBig = IsType('big',[name1,name2])
+            #correctType = self.explicate(And([IsType('small',[name1]),IsType('small',[name1])]))
+            #correctBig = self.explicate(And([IsType('big', [name1]),IsType('big', [name2])]))
+            #ifExp = IfExp(self.explicate(And([leftWord,rightWord])),InjectFrom('int', Add((ProjectTo('int',name1),ProjectTo('int',name2)))),
             #    IfExp(self.explicate(And([leftBig,rightBig])),InjectFrom('big',CallFunc(Name("add"),[ProjectTo('big',name1),ProjectTo('big',name2)])), ThrowErr('add_error')))
+            ifExp = IfExp(correctType,InjectFrom('int', Add((ProjectTo('int',name1),ProjectTo('int',name2)))),
+                IfExp(correctBig,InjectFrom('big',CallFunc(Name("add"),[ProjectTo('big',name1),ProjectTo('big',name2)])), ThrowErr('add_error')))
 
             return Let(name1, l,Let(name2,r,ifExp))
 

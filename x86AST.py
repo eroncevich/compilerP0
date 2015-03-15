@@ -160,7 +160,9 @@ class InterferenceGraph:
                 else:
                     print "Unsupported Print Live"
             elif isinstance(line,FuncOp):
-                self.live[count] -= Set([line.var.name])
+                #print line.var
+                if line.var.name != "*void":
+                    self.live[count] -= Set([line.var.name])
                 for arg in line.args:
                     if isinstance(arg,NameOp):
                         self.live[count].add(arg.name)
@@ -181,6 +183,8 @@ class InterferenceGraph:
 
     def createInterferenceGraph(self, x86code):
         def addEdge(src,dest):
+            if src == "" or dest == "":
+                print "************"
             if not self.interference.has_key(src):
                 self.interference[src] = Set([])
             self.interference[src].add(dest)
@@ -202,7 +206,7 @@ class InterferenceGraph:
                 s = ""
                 if isinstance(x86code[count].src, NameOp):
                     s = x86code[count].src.name
-                if not self.interference.has_key(t):
+                if t and not self.interference.has_key(t):
                     self.interference[t] = Set([])
                 for var in self.live[count]:
                     if x86code[count].name == "movl" or x86code[count].name == "cmove":
@@ -239,14 +243,14 @@ class InterferenceGraph:
                 for var in self.live[count]:
                     if var!= t:
                         addEdge(t,var)
-            elif isinstance(x86code[count], FuncOp): #needs possibly unnecessary extra edges
+            elif isinstance(x86code[count], FuncOp): #needs possibly unnecessary extra edges, #for voids, treat as *void
                 callerSave = ['^eax', '^ecx', '^edx']
                 t= x86code[count].var.name
-                if not self.interference.has_key(t):
+                if t!= "*void" and not self.interference.has_key(t):
                     self.interference[t] = Set([])
                 for r in callerSave:
                     for var in self.live[count]:
-                        if var != t:
+                        if t== "*void" or var != t:
                             addEdge(r,var)
                 for arg in x86code[count].args:
                     if isinstance(arg,NameOp):
@@ -254,11 +258,12 @@ class InterferenceGraph:
                             if var != arg.name:
                                 addEdge(arg.name,var)
                         for r in callerSave:
-                            if arg.name != x86code[count].var.name:
+                            if t== "*void" or arg.name != t:
                                 addEdge(arg.name,r)
-                for var in self.live[count]:
-                    if var != t:
-                        addEdge(t,var)
+                if t!= "*void":
+                    for var in self.live[count]:
+                        if var != t:
+                            addEdge(t,var)
             else:
                 #print "interference",x86code[count] 
                 pass
@@ -279,6 +284,7 @@ class InterferenceGraph:
 
         uncolored = Set()
         for node in self.interference:
+            #print node
             if node[0]!='^':
                 uncolored.add(node)
         while len(uncolored):
@@ -339,7 +345,22 @@ class InterferenceGraph:
                 coloredDest =getRegVal(line.dest)
                 if coloredDest==-1: #removed useless unreferenced variables
                     continue
-                if isinstance(coloredSrc, NameOp) and coloredSrc.name>5 and isinstance(coloredDest,NameOp) and coloredDest.name>5:
+                if line.name == "cmove":
+                    if coloredSrc.name>5:
+                        print "Error on left cmove"
+                        #Shouldn't come up
+                    if coloredDest.name>5:
+                        newTmp = "temp %d" %self.spillTmp
+                        x86revision.append(BinaryOp("movl", line.dest,NameOp(newTmp)))
+                        x86revision.append(BinaryOp(line.name, line.src,NameOp(newTmp)))
+                        x86revision.append(BinaryOp("movl", NameOp(newTmp), line.dest))
+                        self.priority.add(newTmp)
+                        self.spillTmp +=1
+                        spillage = True
+                    else:
+                        x86revision.append(line)
+                        x86colored.append(BinaryOp(line.name, coloredSrc, coloredDest))
+                elif isinstance(coloredSrc, NameOp) and coloredSrc.name>5 and isinstance(coloredDest,NameOp) and coloredDest.name>5:
                     newTmp = "temp %d" %self.spillTmp
                     x86revision.append(BinaryOp("movl", line.src,NameOp(newTmp)))
                     x86revision.append(BinaryOp(line.name, NameOp(newTmp), line.dest))
@@ -408,7 +429,8 @@ class InterferenceGraph:
                     finalString+="\tpushl %s\n" % (self.getArg(arg,color))
                 #self.inputLookup[line.var] = '%eax'
                 finalString+="\tcall %s\n" % str(line.name)
-                finalString+="\tmovl %%eax,%s\n"% (self.getArg(line.var,color))
+                if not line.var.name =="*void":
+                    finalString+="\tmovl %%eax,%s\n"% (self.getArg(line.var,color))
                 finalString+="\taddl $%d, %%esp\n" %(4*len(line.args))
             elif isinstance(line, PrintOp):
                 arg = self.getArg(line.name, color)

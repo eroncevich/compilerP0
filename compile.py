@@ -12,6 +12,8 @@ class flatParser:
     self.ast = ast
     self.flat = []
     self.ifTmp =0
+    self.flat.append(Assign(Name("True"), Const(5)))
+    self.flat.append(Assign(Name("False"), Const(1)))
 
   def flatAst(self, ast):
     if isinstance(ast,Module):
@@ -54,8 +56,8 @@ class flatParser:
     elif isinstance(ast,Add):
         l = self.flatAst(ast.left)
         r = self.flatAst(ast.right)
-        if(isinstance(l,Const) and isinstance(r,Const)):
-            return Const(l.value+r.value)
+        #if(isinstance(l,Const) and isinstance(r,Const)):
+        #    return Const(l.value+r.value)
 
         newTmp = self.getNewTmp()
         self.flat.append(Assign(newTmp, Add((l,r))))
@@ -135,9 +137,6 @@ class flatParser:
         self.flat.append(endName)
         return newTmp
     elif isinstance(ast,If):
-        #print "if",ast.tests[0][0]
-        #    print "then", ast.tests[0][1]
-        #    print "else", ast.else_
         condTmp = self.getNewTmp()
         newTmp = self.getNewTmp()
         test = self.flatAst(ast.tests[0][0])
@@ -184,8 +183,6 @@ class flatParser:
     elif isinstance(ast,IsType):
         childs = [self.flatAst(e) for e in ast.var]
         newTmp = self.getNewTmp()
-        #funcName = Name("is_%s" % ast.typ )
-        #self.flat.append(Assign(newTmp, self.flatAst(CallFunc(funcName, [child]))))
         self.flat.append(Assign(newTmp, IsType(ast.typ, childs)))
         self.flat.append(Assign(newTmp, InjectFrom('bool',newTmp)))
         return newTmp
@@ -228,7 +225,7 @@ class pyTo86:
               if isinstance(curLine.nodes,Subscript):
                   subs = self.getFlatTmp()
                   self.convertLine(curLine.expr, subs)
-                  self.output.append(FuncOp(NameOp("set_subscript"),[self.getConstOrName(curLine.nodes.expr),self.getConstOrName(curLine.nodes.subs[0]),subs],subs))
+                  self.output.append(FuncOp(NameOp("set_subscript"),[self.getConstOrName(curLine.nodes.expr),self.getConstOrName(curLine.nodes.subs[0]),subs],NameOp("*void")))
               else:
                   self.convertLine(curLine.expr, NameOp(curLine.nodes.name))
           elif isinstance(curLine, Printnl):
@@ -285,7 +282,12 @@ class pyTo86:
           (neCmp,endCmp) = self.getCmpLabel()
           jumpType = "je" if curLine.ops[0][0] == '!=' else "jne"
           
-          self.output.append(BinaryOp("cmp",self.getConstOrName(curLine.expr),self.getConstOrName(curLine.ops[0][1])))
+          destVar = self.getConstOrName(curLine.ops[0][1])
+          if isinstance (curLine.ops[0][1], Const):
+              destVar = self.getFlatTmp()
+              self.output.append(BinaryOp("movl", self.getConstOrName(curLine.ops[0][1]),destVar))
+
+          self.output.append(BinaryOp("cmp",self.getConstOrName(curLine.expr),destVar))
           self.output.append(JumpOp(jumpType,neCmp))
           self.output.append(BinaryOp("movl", ConstOp(1) ,tmpName))
           self.output.append(JumpOp("jmp",endCmp))
@@ -302,14 +304,14 @@ class pyTo86:
           self.convertLine(InjectFrom('big', Name(tmpName.name)),projectTmp)
           for e in curLine.nodes:
               self.convertLine(InjectFrom('int', Const(elem)), cursorTmp)
-              self.output.append(FuncOp(NameOp("set_subscript"),[projectTmp,cursorTmp,self.getConstOrName(e)],self.getConstOrName(e)))
+              self.output.append(FuncOp(NameOp("set_subscript"),[projectTmp,cursorTmp,self.getConstOrName(e)],NameOp("*void")))
               elem+=1
       elif isinstance(curLine,Dict):
           projectTmp = self.getFlatTmp()
           self.output.append(FuncOp(NameOp("create_dict"),[],tmpName))
           self.convertLine(InjectFrom('big', Name(tmpName.name)),projectTmp)
           for l,r in curLine.items:
-              self.output.append(FuncOp(NameOp("set_subscript"),[projectTmp,self.getConstOrName(l),self.getConstOrName(r)],self.getConstOrName(r)))
+              self.output.append(FuncOp(NameOp("set_subscript"),[projectTmp,self.getConstOrName(l),self.getConstOrName(r)],NameOp("*void")))
               #self.output.append(FuncOp(NameOp("set_subscript"),[projectTmp,self.getConstOrName(l),ConstOp(16)],self.getConstOrName(r)))
       elif isinstance(curLine,Subscript):
           if curLine.flags == 'OP_APPLY':
@@ -322,10 +324,16 @@ class pyTo86:
           
           if curLine.typ == "int":
               self.output.append(BinaryOp("cmp",ConstOp(0),maskTmp))
-          if curLine.typ == "bool":
+          elif curLine.typ == "bool":
               self.output.append(BinaryOp("cmp",ConstOp(1),maskTmp))
-          if curLine.typ == "big":
+          elif curLine.typ == "big":
               self.output.append(BinaryOp("cmp",ConstOp(3),maskTmp))
+          elif curLine.typ == "small":
+              self.output.append(BinaryOp("sarl",ConstOp(1),maskTmp))
+              self.output.append(BinaryOp("cmp",ConstOp(0),maskTmp))
+          else:
+              print "Error wrong type"
+              exit()
           self.output.append(BinaryOp("movl", ConstOp(1),maskTmp))
           self.output.append(BinaryOp("movl",ConstOp(0),tmpName))
           self.output.append(BinaryOp("cmove",maskTmp,tmpName))
@@ -359,7 +367,7 @@ if __name__ == "__main__":
     inStr=myfile.read()
 
   f = open('/dev/null', 'w')
-  #sys.stdout = f #Uncomment to turn off output
+  sys.stdout = f #Uncomment to turn off output
 
   ast = compiler.parse(inStr)
   print ast
