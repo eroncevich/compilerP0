@@ -107,13 +107,17 @@ class ExplicateParser:
 
             if op == '==' or op == '!=':
                 funcName = Name('equal' if op == '==' else 'not_equal')
-                leftWord = (Or([IsType('int',[name1]),IsType('bool',[name1])]))
-                rightWord = (Or([IsType('int',[name2]),IsType('bool',[name2])]))
+                leftWord = IsType('small',[name1])
+                rightWord = IsType('small',[name2])
                 leftBig = IsType('big', [name1])
                 rightBig = IsType('big', [name2])
+                if op == '==':
+                    exception = InjectFrom('bool', Const(0))
+                else:
+                    exception = InjectFrom('bool', Const(1))
 
                 ifExp = IfExp(self.explicate(And([leftWord,rightWord])),InjectFrom('bool', Compare(ProjectTo('int',name1),[(op, ProjectTo('int',name2))])),
-                IfExp(self.explicate(And([leftBig,rightBig])),InjectFrom('bool',CallFunc(funcName,[ProjectTo('big',name1),ProjectTo('big',name2)])), InjectFrom('bool', Const(0))))
+                IfExp(self.explicate(And([leftBig,rightBig])),InjectFrom('bool',CallFunc(funcName,[ProjectTo('big',name1),ProjectTo('big',name2)])), exception))
 
                 return Let(name1,l,Let(name2,r,ifExp))
             elif op == 'is':

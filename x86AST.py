@@ -1,5 +1,6 @@
 from sets import Set
 from pprint import pprint
+#import 
 
 class Node(object):
     def __init__(self):
@@ -128,6 +129,8 @@ class InterferenceGraph:
                         self.live[count] = self.live[count] - Set([line.dest.name])
                     if isinstance(line.src, NameOp):
                         self.live[count].add(line.src.name)
+                    if line.name == "cmove":
+                        self.priority.add(line.dest.name)
                 elif line.name == "cmp":
                     if isinstance(line.dest, NameOp):
                         self.live[count].add(line.dest.name)
@@ -271,6 +274,7 @@ class InterferenceGraph:
         return self.colorGraph(x86code);
 
     def colorGraph(self, x86code):
+        print "start Color"
         color = {}
         saturation ={}
         color["^eax"]= 0
@@ -312,6 +316,7 @@ class InterferenceGraph:
 
         #print color
         #print saturation
+        print "endColor"
         return self.cleanUpCrew(x86code,color)
 
 
@@ -356,6 +361,7 @@ class InterferenceGraph:
                         x86revision.append(BinaryOp("movl", NameOp(newTmp), line.dest))
                         self.priority.add(newTmp)
                         self.spillTmp +=1
+                        print "spill here"
                         spillage = True
                     else:
                         x86revision.append(line)
