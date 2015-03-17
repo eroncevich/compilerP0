@@ -103,7 +103,10 @@ class flatParser:
 
     elif isinstance(ast,Dict):
         newTmp = self.getNewTmp()
-        self.flat.append(Assign(newTmp,Dict([(self.flatAst(e), self.flatAst(l)) for e,l in ast.items])))
+        keys = [reversed((self.flatAst(l), self.flatAst(e))) for e,l in ast.items]
+
+        #self.flat.append(Assign(newTmp,Dict([(self.flatAst(e), self.flatAst(l)) for e,l in ast.items])))
+        self.flat.append(Assign(newTmp,Dict(keys)))
         return newTmp
 
     elif isinstance(ast,Subscript):
@@ -138,7 +141,7 @@ class flatParser:
         return newTmp
     elif isinstance(ast,If):
         condTmp = self.getNewTmp()
-        newTmp = self.getNewTmp()
+        #newTmp = self.getNewTmp()
         test = self.flatAst(ast.tests[0][0])
         self.flat.append(Assign(condTmp,self.flatAst(CallFunc(Name('is_true'), [test]))))
 
