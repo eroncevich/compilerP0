@@ -58,10 +58,6 @@ class ExplicateParser:
             #return InjectFrom('int', ast)
             return Const(ast.value*4)
         elif isinstance(ast,Name):
-            # if ast.name == "True":
-            #     return InjectFrom('bool', Const(1))
-            # elif ast.name == "False":
-            #     return InjectFrom('bool', Const(0))
             return ast
         elif isinstance(ast,Add):
             l = self.explicate(ast.left)
@@ -83,6 +79,7 @@ class ExplicateParser:
                 IfExp(correctBig,InjectFrom('big',CallFunc(Name("add"),[ProjectTo('big',name1),ProjectTo('big',name2)])), ThrowErr('add_error')))
 
             return Let(name1, l,Let(name2,r,ifExp))
+            #return ifExp
 
         elif isinstance(ast,UnarySub):
             child = self.explicate(ast.expr)

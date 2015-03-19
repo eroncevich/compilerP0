@@ -2,9 +2,11 @@
 import explicate
 import sys
 import x86AST
+import uniquify
 #from compiler.ast import *
 from x86AST import *
 from explicate import *
+from uniquify import *
 
 class flatParser:
   def __init__(self, ast):
@@ -370,18 +372,22 @@ if __name__ == "__main__":
     inStr=myfile.read()
 
   f = open('/dev/null', 'w')
-  sys.stdout = f #Uncomment to turn off output
+  #sys.stdout = f #Uncomment to turn off output
 
   ast = compiler.parse(inStr)
   print ast
+
+  myUnique = Uniquify(ast)
+  ast = myUnique.getLocals(ast)
+
   myExplicate = ExplicateParser(ast)
   ast = myExplicate.explicate(ast)
-  print ast
+  #print ast
 
   parser = flatParser(ast)
 
   parser.flatAst(parser.ast)
-  parser.printFlat()
+  #parser.printFlat()
   to86 = pyTo86(parser.flat,parser.tmp)
   to86.convert86()
   #for line in to86.output: print line 
