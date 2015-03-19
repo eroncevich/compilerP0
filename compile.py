@@ -286,7 +286,7 @@ class pyTo86:
       elif isinstance(curLine,Compare):
           (neCmp,endCmp) = self.getCmpLabel()
           jumpType = "je" if curLine.ops[0][0] == '!=' else "jne"
-          
+
           destVar = self.getConstOrName(curLine.ops[0][1])
           if isinstance (curLine.ops[0][1], Const):
               destVar = self.getFlatTmp()
@@ -326,7 +326,7 @@ class pyTo86:
           maskTmp = self.getFlatTmp()
           self.output.append(BinaryOp("movl", self.getConstOrName(curLine.var[0]),maskTmp))
           self.output.append(BinaryOp("andl",ConstOp(3),maskTmp))
-          
+
           if curLine.typ == "int":
               self.output.append(BinaryOp("cmp",ConstOp(0),maskTmp))
           elif curLine.typ == "bool":
@@ -345,7 +345,7 @@ class pyTo86:
           #need to implement cmovl
 
       else:
-          #print "Assign Error:",curLine 
+          #print "Assign Error:",curLine
           pass
 
   def getConstOrName(self, line):
@@ -378,7 +378,9 @@ if __name__ == "__main__":
   print ast
 
   myUnique = Uniquify(ast)
-  ast = myUnique.getLocals(ast)
+  myUnique.getLocals(ast)
+  print "@@@@@@@"
+  print ast
 
   myExplicate = ExplicateParser(ast)
   ast = myExplicate.explicate(ast)
@@ -390,7 +392,7 @@ if __name__ == "__main__":
   #parser.printFlat()
   to86 = pyTo86(parser.flat,parser.tmp)
   to86.convert86()
-  #for line in to86.output: print line 
+  #for line in to86.output: print line
   ig = InterferenceGraph()
 
   output = ig.createLiveness(to86.output)

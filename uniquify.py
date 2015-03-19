@@ -14,22 +14,31 @@ class Uniquify:
         self.tmp = 0
         self.ast = ast
         self.varMap = {}
+        self.unique_count = 0
 
     def getLocals(self,ast):
         if isinstance(ast,Module):
             return self.getLocals(ast.node)
         elif isinstance(ast,Function):
+            varMap = {}
             localVars = Set([ast.name])
             for arg in ast.argnames:
                 localVars.add(arg)
             localVars|=self.getLocals(ast.code)
-            ast = FuncLocals(localVars,ast)
-            print localVars
-            return Set()
+            for local in localVars:
+                varMap[local] = local + " a" + str(self.unique_count)
+                self.unique_count += 1
+
+            ast = FuncLocals(varMap, ast)
+            print varMap
+            return ast
         elif isinstance(ast,Stmt):
             localVars = Set()
-            for stmt in ast.nodes:
-                localVars|=self.getLocals(stmt) 
+            for index, stmt in enumerate(ast.nodes):
+                if isinstance(stmt, Function):
+                    ast.nodes[index] = self.getLocals(stmt)
+                else:
+                    localVars|=self.getLocals(stmt)
             return localVars
         elif isinstance(ast,Printnl):
             return Set()
