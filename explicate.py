@@ -161,7 +161,8 @@ class ExplicateParser:
         elif isinstance(ast,If):
             return If([(self.explicate(ast.tests[0][0]), self.explicate(ast.tests[0][1]))], self.explicate(ast.else_))
         else:
-          print "Error:",ast
+            pass
+            #print "Error:",ast
     def getNewTmp(self):
       newTmp = Name('expl '+`self.tmp`)
       self.tmp += 1
