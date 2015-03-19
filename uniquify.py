@@ -19,12 +19,12 @@ class Uniquify:
         if isinstance(ast,Module):
             return self.getLocals(ast.node)
         elif isinstance(ast,Function):
-            localVars = Set(ast.name)
+            localVars = Set([ast.name])
             for arg in ast.argnames:
                 localVars.add(arg)
             localVars|=self.getLocals(ast.code)
-            ast.local = localVars
             ast = FuncLocals(localVars,ast)
+            print localVars
             return Set()
         elif isinstance(ast,Stmt):
             localVars = Set()
@@ -34,9 +34,9 @@ class Uniquify:
         elif isinstance(ast,Printnl):
             return Set()
         elif isinstance(ast,Assign):
-            return self.getLocals(ast.nodes[0])
+            return self.getLocals(ast.nodes[0]) |self.getLocals(ast.expr)
         elif isinstance(ast,AssName):
-            return Set(ast.name)
+            return Set([ast.name])
         elif isinstance(ast,Discard):
             return self.getLocals(ast.expr)
         elif isinstance(ast,Const):
@@ -46,39 +46,41 @@ class Uniquify:
         elif isinstance(ast,Add):
             leftVars = self.getLocals(ast.left)
             rightVars = self.getLocals(ast.right)
-            return lefVars | rightVars
+            return leftVars | rightVars
         elif isinstance(ast,UnarySub):
             return self.getLocals(ast.expr)
         elif isinstance(ast,CallFunc):
             return Set()
         elif isinstance(ast,Compare):
-            print "AST"
-            pass
+            return self.getLocals(ast.expr) | self.getLocals(ast.ops[0][1])
         elif isinstance(ast,Or):
-            print "AST"
-            pass
+            return self.getLocals(ast.nodes[0]) |self.getLocals(ast.nodes[1])
         elif isinstance(ast,And):
-            print "AST"
-            pass
+            return self.getLocals(ast.nodes[0]) |self.getLocals(ast.nodes[1])
         elif isinstance(ast,Not):
-            print "AST"
-            pass
+            return self.getLocals(ast.expr)
         elif isinstance(ast,List):
-            print "AST"
-            pass
+            localVars = Set()
+            for e in ast.nodes:
+                localVars|=self.getLocals(e)
+            return Set()
         elif isinstance(ast,Dict):
-            print "AST"
-            pass
+            localVars = Set()
+            for l,e in ast.items:
+                localVars|=self.getLocals(e)
+            return Set()
         elif isinstance(ast,Subscript):
-            print "AST"
-            pass
+            return Set()
         elif isinstance(ast,IfExp):
-            print "AST"
-            pass
+            return self.getLocals(ast.test)| self.getLocals(ast.then)| self.getLocals(ast.else_)
         elif isinstance(ast,If):
-            print "AST"
-            pass
+            return self.getLocals(ast.tests[0][0])| self.getLocals(ast.tests[0][1]) | self.getLocals(ast.else_)
         elif isinstance(ast,Lambda):
-            pass
+            localVars = Set()
+            for arg in ast.argnames:
+                localVars.add(arg)
+            localVars|=self.getLocals(ast.code)
+            ast = FuncLocals(localVars,ast)
+            return Set()
         else:
-            print "Error:",ast
+            print "Error Unique:",ast
