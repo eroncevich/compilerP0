@@ -165,6 +165,7 @@ class Uniquify:
             self.unique(ast.tests[0][0], localVars)
             self.unique(ast.tests[0][1], localVars)
         elif isinstance(ast,Lambda):
-            print "AST"
+            ast.argnames = [localVars[arg] for arg in ast.argnames]
+            self.unique(ast.code, localVars)
         else:
             print "Error Unique:",ast

@@ -379,6 +379,7 @@ if __name__ == "__main__":
 
   myUnique = Uniquify(ast)
   myUnique.getLocals(ast)
+  print ast
 
   myUnique.unique(ast)
   print "@@@@@@@"
