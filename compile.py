@@ -375,13 +375,16 @@ if __name__ == "__main__":
   #sys.stdout = f #Uncomment to turn off output
 
   ast = compiler.parse(inStr)
-  print ast
+  #print ast
+
 
   myUnique = Uniquify(ast)
+  print ast
+  ast = myUnique.replaceFunc(ast)
   myUnique.getLocals(ast)
   print ast
 
-  myUnique.unique(ast)
+  myUnique.unique(ast)  
   print "@@@@@@@"
   print ast
 
