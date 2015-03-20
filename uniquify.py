@@ -117,39 +117,53 @@ class Uniquify:
         elif isinstance(ast,Printnl):
             self.unique(ast.nodes, localVars)
         elif isinstance(ast,Assign):
-            print "AST"
+            self.unique(ast.nodes[0], localVars)
+            self.unique(ast.expr, localVars)
         elif isinstance(ast,AssName):
-            print "AST"
+            self.unique(ast.name, localVars)# = localVars[ast.name]
         elif isinstance(ast,Discard):
-            print "AST"
+            self.unique(ast.expr, localVars)
         elif isinstance(ast,Const):
-            print "AST"
+            pass
         elif isinstance(ast,Name):
-            print "AST"
+            ast.name = localVars[ast.name]
         elif isinstance(ast,Add):
-            print "AST"
+            self.unique(ast.left, localVars)
+            self.unique(ast.right, localVars)
         elif isinstance(ast,UnarySub):
-            print "AST"
+            self.unique(ast.expr, localVars)
         elif isinstance(ast,CallFunc):
-            print "AST"
+            self.unique(ast.node, localVars)
+            for arg in ast.args:
+                self.unique(arg, localVars)
         elif isinstance(ast,Compare):
-            print "AST"
+            self.unique(ast.expr, localVars)
+            self.unique(ast.ops[0][1], localVars)
         elif isinstance(ast,Or):
-            print "AST"
+            for arg in ast.nodes:
+                self.unique(arg, localVars)
         elif isinstance(ast,And):
-            print "AST"
+            for arg in ast.nodes:
+                self.unique(arg, localVars)
         elif isinstance(ast,Not):
-            print "AST"
+            self.unique(ast.expr, localVars)
         elif isinstance(ast,List):
-            print "AST"
+            for arg in ast.nodes:
+                self.unique(arg, localVars)
         elif isinstance(ast,Dict):
-            print "AST"
+            for e,l in ast.items:
+                self.unique(e, localVars)
+                self.unique(l, localVars)
         elif isinstance(ast,Subscript):
-            print "AST"
+            self.unique(ast.expr, localVars)
+            self.unique(ast.subs[0], localVars)
         elif isinstance(ast,IfExp):
-            print "AST"
+            self.unique(ast.test, localVars)
+            self.unique(ast.then, localVars)
+            self.unique(ast.else_, localVars)
         elif isinstance(ast,If):
-            print "AST"
+            self.unique(ast.tests[0][0], localVars)
+            self.unique(ast.tests[0][1], localVars)
         elif isinstance(ast,Lambda):
             print "AST"
         else:
