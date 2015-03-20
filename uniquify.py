@@ -37,9 +37,14 @@ class Uniquify:
         elif isinstance(ast,Stmt):
             localVars = Set()
             for index, stmt in enumerate(ast.nodes):
-                if isinstance(stmt, Function):
+                if isinstance(stmt, Discard):
+                    if isinstance(stmt.expr, Lambda):
+                        ast.nodes[index] = self.getLocals(stmt)
+                elif isinstance(stmt, Function) or isinstance(stmt, Lambda):
                     ast.nodes[index] = self.getLocals(stmt)
                 else:
+                    print stmt
+                    print self.getLocals(stmt)
                     localVars|=self.getLocals(stmt)
             return localVars
         elif isinstance(ast,Printnl):
@@ -88,11 +93,19 @@ class Uniquify:
             return self.getLocals(ast.tests[0][0])| self.getLocals(ast.tests[0][1]) | self.getLocals(ast.else_)
         elif isinstance(ast,Lambda):
             localVars = Set()
+            varMap = {}
             for arg in ast.argnames:
                 localVars.add(arg)
             localVars|=self.getLocals(ast.code)
-            ast = FuncLocals(localVars,ast)
-            return Set()
+
+            localId = self.unique_count
+            self.unique_count+=1
+            for local in localVars:
+                varMap[local] = local + " a" + str(localId)
+
+            ast = FuncLocals(varMap, ast)
+
+            return ast
         else:
             print "Error Unique:",ast
 
