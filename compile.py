@@ -16,8 +16,6 @@ class flatParser:
     self.ast = ast
     self.flat = []
     self.ifTmp =0
-    self.flat.append(Assign(Name("True"), Const(5)))
-    self.flat.append(Assign(Name("False"), Const(1)))
 
   def flatAst(self, ast):
     if isinstance(ast,Module):
@@ -198,17 +196,27 @@ class flatParser:
     elif isinstance(ast, Function):
         #print "Function"
         self.flat.append(Name("Function "+ast.name))
+        #if ast.name == "main body":    
+            #self.flat.append(Assign(Name("True"), Const(5)))
+            #self.flat.append(Assign(Name("False"), Const(1)))
         self.flatAst(ast.code)
         self.flat.append(Name("FuncEnd "+ast.name))
 
     elif isinstance(ast,Return):
-        print "Return"
+        newTmp = self.getNewTmp()
+        child = self.flatAst(ast.value)
+        
+        self.flat.append(Return(child))
+        #self.
+        return
     elif isinstance(ast,CallPointer):
         argFlat = [self.flatAst(arg) for arg in ast.args]
         newTmp = self.getNewTmp()
-        self.flat.append(Assign(newTmp, CallFunc(ast.node,argFlat)))
+        child = self.flatAst(ast.node)
+        self.flat.append(Assign(newTmp, CallPointer(child,argFlat)))
         newTmp2 = self.getNewTmp()
         self.flat.append(Assign(newTmp2, newTmp))
+        return newTmp2
     else:
         print "***error:", ast
         pass
@@ -262,9 +270,13 @@ class pyTo86:
                   self.output.append(ClauseOp(NameOp("then%s"%line[1])))
               elif line[0] == "end":
                   self.output.append(ClauseOp(NameOp("end%s"%line[1])))
+              elif line[0] == "FuncEnd":
+                  self.output.append(EndOp())
           elif isinstance(curLine, UnarySub):
               #check to delete
               self.output.append(UnaryOp("negl", NameOp(curLine.expr.name)))
+          elif isinstance(curLine,Return):
+              print "goood"
 
 
   def convertLine(self,curLine,tmpName):
@@ -387,7 +399,7 @@ if __name__ == "__main__":
     inStr=myfile.read()
 
   f = open('/dev/null', 'w')
-  #sys.stdout = f #Uncomment to turn off output
+  sys.stdout = f #Uncomment to turn off output
 
   ast = compiler.parse(inStr)
   #print ast
@@ -408,7 +420,7 @@ if __name__ == "__main__":
   ast = myHeap.heapAlloc(ast)
   #print ast
   ast = myHeap.closure(ast)
-  #print ast
+  print ast
 
   myExplicate = ExplicateParser(ast)
   ast = myExplicate.explicate(ast)
@@ -417,7 +429,7 @@ if __name__ == "__main__":
   parser = flatParser(ast)
 
   parser.flatAst(parser.ast)
-  #parser.printFlat()
+  parser.printFlat()
   to86 = pyTo86(parser.flat,parser.tmp)
   to86.convert86()
   #for line in to86.output: print line

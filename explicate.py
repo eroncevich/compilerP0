@@ -58,7 +58,7 @@ class ExplicateParser:
             return Discard(self.explicate(ast.expr))
         elif isinstance(ast,Const):
             #return InjectFrom('int', ast)
-            return Const(ast.value*4)
+            return Const(int(ast.value*4))
         elif isinstance(ast,Name):
             return ast
         elif isinstance(ast,Add):

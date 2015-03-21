@@ -85,6 +85,20 @@ class ClauseOp(Node):
     def __str__(self):
         return "%s:" % (str(self.label))
 
+class ReturnOp(Node):
+    def __init__(self, ret):
+        self.ret = ret
+    def __repr__(self):
+        return "EndOp(%s)" % (repr(self.ret))
+    def __str__(self):
+        return "%s:" % (str(self.ret))
+
+class EndOp(Node):
+    def __repr__(self):
+        return "EndOp()"
+    def __str__(self):
+        return "FuncEnd"
+
 class InterferenceGraph:
     def __init__(self):
         self.interference = {}
@@ -178,6 +192,9 @@ class InterferenceGraph:
             elif isinstance(line,ClauseOp):
                 labels[line.label.name]= self.live[count].copy()
 
+            elif isinstance(line,EndOp):
+                self.live[count] = Set()
+
             else:
                 print "missing liveness",line
         self.live.reverse()
@@ -267,8 +284,10 @@ class InterferenceGraph:
                     for var in self.live[count]:
                         if var != t:
                             addEdge(t,var)
+            elif isinstance(x86code[count], EndOp):
+                pass
             else:
-                #print "interference",x86code[count] 
+                print "interference",x86code[count] 
                 pass
         #pprint(self.interference)
         return self.colorGraph(x86code);
@@ -391,6 +410,9 @@ class InterferenceGraph:
             elif isinstance(line,ClauseOp):
                 x86revision.append(line)
                 x86colored.append(ClauseOp(line.label))
+            elif isinstance(line,EndOp):
+                x86revision.append(line)
+                x86colored.append(EndOp())
             else:
                 print "Unnaccounted for Type",line
 
@@ -456,6 +478,10 @@ class InterferenceGraph:
                 finalString+="\t%s\n" % str(line)
             elif isinstance(line,ClauseOp):
                 finalString+="\t%s\n" % str(line)
+            elif isinstance(line,EndOp):
+                finalString+=("\tmovl $0,%eax\n")
+                finalString+=("\tleave\n")
+                finalString+=("\tret\n")
             else:
                 print "Unnaccounted Print", line
 
@@ -467,7 +493,4 @@ class InterferenceGraph:
         else:
             header+=("\tsubl $%d, %%esp\n") % ((self.maxcolor-5)*4)
         finalString = header+finalString
-        finalString+=("\tmovl $0,%eax\n")
-        finalString+=("\tleave\n")
-        finalString+=("\tret\n")
         return finalString
