@@ -3,12 +3,13 @@ from compiler.ast import *
 from sets import Set
 
 class FuncLocals:
-    def __init__(self, local,free, func):
+    def __init__(self, local,free, func, name):
         self.local = local
         self.free = free
         self.func = func
+        self.name = name
     def __repr__(self):
-        return "FuncLocals(\'%s\',\'%s\',%s)" % (repr(self.local),repr(self.free),repr(self.func))
+        return "FuncLocals(\'%s\',\'%s\',%s, %s)" % (repr(self.local),repr(self.free),repr(self.func), self.name)
 
 class Uniquify:
     def __init__(self, ast):
@@ -24,7 +25,8 @@ class Uniquify:
             return Module(None,self.replaceFunc(ast.node))
         elif isinstance(ast,Function):
             #return FuncLocals({},Set(), Assign([AssName(ast.name, 'OP_ASSIGN')],Lambda(ast.argnames,[], 0, self.replaceFunc(ast.code))))
-            return Assign([AssName(ast.name, 'OP_ASSIGN')], FuncLocals({},Set(),Lambda(ast.argnames,[], 0, self.replaceFunc(ast.code))))
+            #print ast.name
+            return Assign([AssName(ast.name, 'OP_ASSIGN')], FuncLocals({},Set(),Lambda(ast.argnames,[], 0, self.replaceFunc(ast.code)), ast.name))
         elif isinstance(ast,Stmt):
             return Stmt([self.replaceFunc(stmt) for stmt in ast.nodes])
         elif isinstance(ast,Printnl):
@@ -64,7 +66,7 @@ class Uniquify:
         elif isinstance(ast,If):
             return If([(self.replaceFunc(ast.tests[0][0]), self.replaceFunc(ast.tests[0][1]))], self.replaceFunc(ast.else_))
         elif isinstance(ast,Lambda):
-            return FuncLocals({},Set(),Lambda(ast.argnames,[], 0, Stmt([Return(self.replaceFunc(ast.code))])))
+            return FuncLocals({},Set(),Lambda(ast.argnames,[], 0, Stmt([Return(self.replaceFunc(ast.code))])),"empty")
         else:
             print "Error toFunc:",ast
 
@@ -76,12 +78,13 @@ class Uniquify:
             varMap = {}
             localId = self.unique_count
             self.unique_count+=1
-            localVars = self.getLocals(ast.func)
-
+            localVars = Set()
             if isinstance(ast.func,Lambda) and self.trueSet: #We assume True and False set at beginning
                 localVars|=Set(['True'])
                 localVars|=Set(['False'])
                 self.trueSet =0
+
+            localVars |= self.getLocals(ast.func)
             for local in localVars:
                 varMap[local] = local + " a" + str(localId)
 
@@ -187,6 +190,12 @@ class Uniquify:
         elif isinstance(ast,Printnl):
             return self.unique(ast.nodes[0], localVars, curLocals)
         elif isinstance(ast,Assign):
+            if isinstance(ast.expr, FuncLocals) and ast.expr.name != "empty":
+                #print "hi"
+                if ast.nodes[0].name == "main body":
+                    ast.expr.name = "main body"
+                else:
+                    ast.expr.name = localVars[ast.nodes[0].name]
 
             self.unique(ast.nodes[0], localVars, curLocals)
             freeVars = self.unique(ast.expr, localVars, curLocals)

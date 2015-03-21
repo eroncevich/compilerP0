@@ -393,7 +393,9 @@ if __name__ == "__main__":
 
   myHeap = Heapify(ast)
   ast = myHeap.heapAlloc(ast)
-  print ast
+  #print ast
+  ast = myHeap.closure(ast)
+ # print ast
 
   myExplicate = ExplicateParser(ast)
   ast = myExplicate.explicate(ast)

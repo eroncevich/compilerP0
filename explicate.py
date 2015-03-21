@@ -151,7 +151,7 @@ class ExplicateParser:
             return InjectFrom('big',Dict([(self.explicate(e), self.explicate(l)) for e,l in ast.items]))
 
         elif isinstance(ast,Subscript):
-            print self.explicate(ast.subs[0])
+            #print self.explicate(ast.subs[0])
             return Subscript(self.explicate(ast.expr), ast.flags, [self.explicate(ast.subs[0])])
 
         elif isinstance(ast,IfExp):
