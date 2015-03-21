@@ -3,10 +3,12 @@ import explicate
 import sys
 import x86AST
 import uniquify
+import heapify
 #from compiler.ast import *
 from x86AST import *
 from explicate import *
 from uniquify import *
+from heapify import *
 
 class flatParser:
   def __init__(self, ast):
@@ -388,6 +390,10 @@ if __name__ == "__main__":
   myUnique.unique(ast)  
   print "@@@@@@@"
   #print ast
+
+  myHeap = Heapify(ast)
+  ast = myHeap.heapAlloc(ast)
+  print ast
 
   myExplicate = ExplicateParser(ast)
   ast = myExplicate.explicate(ast)

@@ -17,6 +17,7 @@ class Uniquify:
         self.varMap = {}
         self.unique_count = 0
         ast.node= Stmt([Function(None,'main body', [], [], 0, None, ast.node)])
+        self.trueSet =1
 
     def replaceFunc(self,ast):
         if isinstance(ast,Module):
@@ -77,9 +78,10 @@ class Uniquify:
             self.unique_count+=1
             localVars = self.getLocals(ast.func)
 
-            if isinstance(ast.func,Lambda): #We assume True and False set at beginning
+            if isinstance(ast.func,Lambda) and self.trueSet: #We assume True and False set at beginning
                 localVars|=Set(['True'])
                 localVars|=Set(['False'])
+                self.trueSet =0
             for local in localVars:
                 varMap[local] = local + " a" + str(localId)
 
