@@ -1,5 +1,7 @@
 import compiler
 from compiler.ast import *
+import heapify
+from heapify import *
 
 class GetTag(Node):
     def __init__(self, arg):
@@ -91,7 +93,13 @@ class ExplicateParser:
             return Let(name,child,ifExp)
 
         elif isinstance(ast,CallFunc):
-            return ast
+            arglist = []
+            for arg in ast.args:
+                if not isinstance(arg,str):
+                    arglist+ [self.explicate(arg)]
+                else:
+                    arglist+[arg]
+            return CallFunc(ast.node,arglist, None,None)
             #TODO: explicate over args
 
         elif isinstance(ast,Compare):
@@ -160,9 +168,21 @@ class ExplicateParser:
             return IsType(ast.typ,[self.explicate(e) for e in ast.var])
         elif isinstance(ast,If):
             return If([(self.explicate(ast.tests[0][0]), self.explicate(ast.tests[0][1]))], self.explicate(ast.else_))
+        elif isinstance(ast,FuncLocals):
+            #print "fnunclocals"
+            return Function(None, ast.name,ast.func.argnames, [],0,None, self.explicate(ast.func.code))
+        elif isinstance(ast,Return):
+            return Return(self.explicate(ast.value))
+        elif isinstance(ast,CallPointer):
+            arglist = []
+            for arg in ast.args:
+                if not isinstance(arg,str):
+                    arglist+ [self.explicate(arg)]
+                else:
+                    arglist+[arg]
+            return CallPointer(self.explicate(ast.node), arglist)
         else:
-            pass
-            #print "Error:",ast
+            print "Error explicate:",ast
     def getNewTmp(self):
       newTmp = Name('expl '+`self.tmp`)
       self.tmp += 1

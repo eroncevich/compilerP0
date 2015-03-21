@@ -195,7 +195,20 @@ class flatParser:
         return newTmp
     elif isinstance(ast,ThrowErr):
         return ast
+    elif isinstance(ast, Function):
+        #print "Function"
+        self.flat.append(Name("Function "+ast.name))
+        self.flatAst(ast.code)
+        self.flat.append(Name("FuncEnd "+ast.name))
 
+    elif isinstance(ast,Return):
+        print "Return"
+    elif isinstance(ast,CallPointer):
+        argFlat = [self.flatAst(arg) for arg in ast.args]
+        newTmp = self.getNewTmp()
+        self.flat.append(Assign(newTmp, CallFunc(ast.node,argFlat)))
+        newTmp2 = self.getNewTmp()
+        self.flat.append(Assign(newTmp2, newTmp))
     else:
         print "***error:", ast
         pass
@@ -395,7 +408,7 @@ if __name__ == "__main__":
   ast = myHeap.heapAlloc(ast)
   #print ast
   ast = myHeap.closure(ast)
- # print ast
+  #print ast
 
   myExplicate = ExplicateParser(ast)
   ast = myExplicate.explicate(ast)

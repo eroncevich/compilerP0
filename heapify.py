@@ -6,6 +6,13 @@ class ClosureConversion:
         self.fvs = fvs
     def __repr__(self):
         return "ClosureConversion(\'%s\',%s)" % (repr(self.globalName),repr(self.fvs))
+class CallPointer:
+    def __init__(self, node,args):
+        self.node = node
+        self.args = args
+    def __repr__(self):
+        return "CallPointer(%s,%s)" % (repr(self.node),repr(self.args))
+
 
 class Heapify:
     def __init__(self, ast):
@@ -14,6 +21,7 @@ class Heapify:
         self.varMap = {}
         self.unique_count = 0
         self.lambdaNum =0
+        self.freeVars={}
 
     def heapAlloc(self,ast,curLocals = Set()):
         if isinstance(ast,Module):
@@ -83,12 +91,16 @@ class Heapify:
             self.ast.node.nodes.pop()
             return Module(None,self.ast.node)
         elif isinstance(ast,FuncLocals):
-            lambdaName = self.getLambdaName()
+            if ast.name == "empty":
+                ast.name = self.getLambdaName()
+
             for index, arg in enumerate(sorted(ast.free)):
                 ast.func.code.nodes.insert(0,Assign([AssName(arg,'OP_ASSIGN')],Subscript(Name('fvs'),'OP_APPLY', [Const(index)])))
             ast.func.argnames.insert(0,'fvs')
+            self.freeVars[ast.name] = ast.free
             self.ast.node.nodes.insert(0,FuncLocals(ast.local,ast.free,self.closure(ast.func,curLocals),ast.name))
-            return ClosureConversion(ast.name, ast.free)
+            #return ClosureConversion(ast.name, ast.free)
+            return CallFunc(Name("create_closure"), [ast.name, List([Name(arg) for arg in sorted(ast.free)])], None, None)
         elif isinstance(ast,Stmt):
             return Stmt([self.closure(stmt,curLocals) for stmt in ast.nodes])
         elif isinstance(ast,Printnl):
@@ -110,7 +122,9 @@ class Heapify:
         elif isinstance(ast,UnarySub):
             return UnarySub(self.closure(ast.expr,curLocals))
         elif isinstance(ast,CallFunc):
-            return ast
+            if ast.node == "input":
+                return ast
+            return CallPointer(CallFunc(Name('get_fun_ptr'), ast.node, None,None),[CallFunc(Name("get_free_vars"), ast.node)]+ast.args)
         elif isinstance(ast,Compare):
             return Compare(self.closure(ast.expr,curLocals), [(ast.ops[0][0], self.closure(ast.ops[0][1],curLocals))])
         elif isinstance(ast,Or):
