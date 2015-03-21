@@ -22,9 +22,8 @@ class Uniquify:
         if isinstance(ast,Module):
             return Module(None,self.replaceFunc(ast.node))
         elif isinstance(ast,Function):
-            #return FuncLocals({}, Function(None,ast.name,ast.argnames,ast.defaults,ast.flags,ast.doc,self.replaceFunc(ast.code)))
-            return FuncLocals({},Set(), Assign([AssName(ast.name, 'OP_ASSIGN')],Lambda(ast.argnames,[], 0, self.replaceFunc(ast.code))))
-            #return Function(None,ast.name,ast.argnames,ast.defaults,ast.flags,ast.doc,self.replaceFunc(ast.code))
+            #return FuncLocals({},Set(), Assign([AssName(ast.name, 'OP_ASSIGN')],Lambda(ast.argnames,[], 0, self.replaceFunc(ast.code))))
+            return Assign([AssName(ast.name, 'OP_ASSIGN')], FuncLocals({},Set(),Lambda(ast.argnames,[], 0, self.replaceFunc(ast.code))))
         elif isinstance(ast,Stmt):
             return Stmt([self.replaceFunc(stmt) for stmt in ast.nodes])
         elif isinstance(ast,Printnl):
@@ -56,17 +55,15 @@ class Uniquify:
         elif isinstance(ast,List):
             return List([self.replaceFunc(e) for e in ast.nodes])
         elif isinstance(ast,Dict):
-            Dict([(self.replaceFunc(e), self.replaceFunc(l)) for e,l in ast.items])
+            return Dict([(self.replaceFunc(e), self.replaceFunc(l)) for e,l in ast.items])
         elif isinstance(ast,Subscript):
             return Subscript(self.replaceFunc(ast.expr), ast.flags, [self.replaceFunc(ast.subs[0])])
         elif isinstance(ast,IfExp):
-            IfExp(self.replaceFunc(ast.test), self.replaceFunc(ast.then), self.replaceFunc(ast.else_))
+            return IfExp(self.replaceFunc(ast.test), self.replaceFunc(ast.then), self.replaceFunc(ast.else_))
         elif isinstance(ast,If):
             return If([(self.replaceFunc(ast.tests[0][0]), self.replaceFunc(ast.tests[0][1]))], self.replaceFunc(ast.else_))
         elif isinstance(ast,Lambda):
-            #return Lambda(ast.argnames,[], 0, self.replaceFunc(ast.code))
             return FuncLocals({},Set(),Lambda(ast.argnames,[], 0, Stmt([Return(self.replaceFunc(ast.code))])))
-            #return ast
         else:
             print "Error toFunc:",ast
 
@@ -76,9 +73,13 @@ class Uniquify:
             return self.getLocals(ast.node)
         elif isinstance(ast,FuncLocals):
             varMap = {}
-            localVars = self.getLocals(ast.func)
             localId = self.unique_count
             self.unique_count+=1
+            localVars = self.getLocals(ast.func)
+
+            if isinstance(ast.func,Lambda): #We assume True and False set at beginning
+                localVars|=Set(['True'])
+                localVars|=Set(['False'])
             for local in localVars:
                 varMap[local] = local + " a" + str(localId)
 
@@ -95,7 +96,6 @@ class Uniquify:
         elif isinstance(ast,Stmt):
             localVars = Set()
             for stmt in ast.nodes:
-                print stmt
                 localVars|=self.getLocals(stmt)
             return localVars
         elif isinstance(ast,Printnl):
@@ -158,6 +158,7 @@ class Uniquify:
         if isinstance(ast,Module):
             self.unique(ast.node,localVars, curLocals)
         elif isinstance(ast,FuncLocals):
+            localVars = localVars.copy()
             for key in ast.local:
                 localVars[key]= ast.local[key]
 
@@ -170,7 +171,6 @@ class Uniquify:
             for var in freeVars:
                 if var not in oldLocals.values():
                     newVars |= Set([var])
-
             return newVars
 
         elif isinstance(ast,Function):
@@ -191,15 +191,18 @@ class Uniquify:
             return freeVars
         elif isinstance(ast,AssName):
             #shouln't need to return here
+            if ast.name == 'main body':
+                return
             ast.name = localVars[ast.name]
         elif isinstance(ast,Discard):
             return self.unique(ast.expr, localVars, curLocals)
         elif isinstance(ast,Const):
             return Set()
         elif isinstance(ast,Name):
+            #if(ast)
+
             tmp = ast.name
             ast.name = localVars[ast.name]
-            print curLocals
             if not curLocals.has_key(tmp):
                 return Set([ast.name])
             else:
@@ -211,6 +214,9 @@ class Uniquify:
         elif isinstance(ast,UnarySub):
             return self.unique(ast.expr, localVars, curLocals)
         elif isinstance(ast,CallFunc):
+            if isinstance(ast.node, Name):
+                if ast.node.name == 'input' and len(ast.args)==0:
+                    return Set()
             freeVars = self.unique(ast.node, localVars, curLocals)
             for arg in ast.args:
                 freeVars |= self.unique(arg, localVars, curLocals)
@@ -221,27 +227,31 @@ class Uniquify:
             freeVars = Set()
             for arg in ast.nodes:
                 freeVars |= self.unique(arg, localVars, curLocals)
+            return freeVars
         elif isinstance(ast,And):
             freeVars = Set()
             for arg in ast.nodes:
                 freeVars |= self.unique(arg, localVars, curLocals)
+            return freeVars
         elif isinstance(ast,Not):
             return self.unique(ast.expr, localVars, curLocals)
         elif isinstance(ast,List):
             freeVars = Set()
             for arg in ast.nodes:
                 freeVars |= self.unique(arg, localVars, curLocals)
+            return freeVars
         elif isinstance(ast,Dict):
             freeVars = Set()
             for e,l in ast.items:
                 freeVars |=self.unique(e, localVars, curLocals)
                 freeVars |=self.unique(l, localVars, curLocals)
+            return freeVars
         elif isinstance(ast,Subscript):
             return self.unique(ast.expr, localVars, curLocals) | self.unique(ast.subs[0], localVars, curLocals)
         elif isinstance(ast,IfExp):
             return self.unique(ast.test, localVars, curLocals) | self.unique(ast.then, localVars, curLocals) |self.unique(ast.else_, localVars, curLocals)
         elif isinstance(ast,If):
-            self.unique(ast.tests[0][0], localVars, curLocals) | self.unique(ast.tests[0][1], localVars, curLocals)
+            return self.unique(ast.tests[0][0], localVars, curLocals) | self.unique(ast.tests[0][1], localVars, curLocals)
         elif isinstance(ast,Lambda):
             ast.argnames = [localVars[arg] for arg in ast.argnames]
             freeVars = self.unique(ast.code, localVars, curLocals)

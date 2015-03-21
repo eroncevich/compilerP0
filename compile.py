@@ -379,14 +379,15 @@ if __name__ == "__main__":
 
 
   myUnique = Uniquify(ast)
-  print ast
+  #print ast
   ast = myUnique.replaceFunc(ast)
+  #print ast
   myUnique.getLocals(ast)
-  print ast
+  #print ast
 
   myUnique.unique(ast)  
   print "@@@@@@@"
-  print ast
+  #print ast
 
   myExplicate = ExplicateParser(ast)
   ast = myExplicate.explicate(ast)
