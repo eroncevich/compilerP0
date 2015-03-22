@@ -220,6 +220,7 @@ class flatParser:
                 argFlat+= [self.flatAst(arg)]
             else:
                 argFlat += [arg]
+        print argFlat
         newTmp = self.getNewTmp()
         child = self.flatAst(ast.node)
         self.flat.append(Assign(newTmp, CallPointer(child,argFlat)))

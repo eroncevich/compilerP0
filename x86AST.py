@@ -240,7 +240,7 @@ class InterferenceGraph:
         self.interference['^edx'] = Set([])
         somelen = len(x86code)
         for count in range(0,somelen):
-            print x86code[count],self.live[count]
+            #print x86code[count],self.live[count]
             if isinstance(x86code[count], BinaryOp):
                 if isinstance(x86code[count].dest,ConstOp):
                     t = ""
@@ -474,9 +474,6 @@ class InterferenceGraph:
                 return self.inputLookup[name.name]
             colorid = color[name.name]
             if colorid>5:
-                #print self.maxcolor
-                #if colorid>self.maxcolor:
-                #    self.maxcolor=colorid
                 return "-%d(%%ebp)"%((colorid-5)*4)
             else:
                 return "%" + self.registerColors[colorid]
@@ -525,11 +522,13 @@ class InterferenceGraph:
                 finalString+=("%s:\n") % line.name
                 finalString+=("\tpushl %ebp\n")
                 finalString+=("\tmovl %esp, %ebp\n")
-                print self.maxcolor
                 if self.maxcolor <6:
                     self.maxcolor = 0
                 else:
                     finalString+=("\tsubl $%d, %%esp\n") % ((self.maxcolor-5)*4)
+                for index,arg in enumerate(line.args):
+                    if color.has_key(arg.name):
+                        finalString+="\tmovl %d(%%ebp), %s\n" %(index*4+8, self.getArg(arg,color))
             else:
                 print "Unnaccounted Print", line
 

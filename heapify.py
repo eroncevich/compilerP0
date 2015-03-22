@@ -22,6 +22,7 @@ class Heapify:
         self.unique_count = 0
         self.lambdaNum =0
         self.freeVars={}
+        self.needsHeaped = Set()
 
     def heapAlloc(self,ast,curLocals = Set()):
         if isinstance(ast,Module):
@@ -31,7 +32,10 @@ class Heapify:
             #print ast.local,ast.free
             for arg in ast.free:
                 if arg in curLocals:
-                    ast.func.code.nodes.insert(0, Assign([AssName(arg, 'OP_ASSIGN')], List([Name(arg)])))
+                    print arg, "eh", ast.name
+                    self.needsHeaped|= Set([arg])
+                    #ast.func.code.nodes.insert(0, Assign([AssName(arg, 'OP_ASSIGN')], List([Name(arg)])))
+            print self.needsHeaped
                 
             localVars = Set()
             for arg in ast.local.values():
