@@ -73,10 +73,6 @@ class ExplicateParser:
             #rightWord = (Or([IsType('int',[name2]),IsType('bool',[name2])]))
             correctType = IsType('small',[name1,name2])
             correctBig = IsType('big',[name1,name2])
-            #correctType = self.explicate(And([IsType('small',[name1]),IsType('small',[name1])]))
-            #correctBig = self.explicate(And([IsType('big', [name1]),IsType('big', [name2])]))
-            #ifExp = IfExp(self.explicate(And([leftWord,rightWord])),InjectFrom('int', Add((ProjectTo('int',name1),ProjectTo('int',name2)))),
-            #    IfExp(self.explicate(And([leftBig,rightBig])),InjectFrom('big',CallFunc(Name("add"),[ProjectTo('big',name1),ProjectTo('big',name2)])), ThrowErr('add_error')))
             ifExp = IfExp(correctType,InjectFrom('int', Add((ProjectTo('int',name1),ProjectTo('int',name2)))),
                 IfExp(correctBig,InjectFrom('big',CallFunc(Name("add"),[ProjectTo('big',name1),ProjectTo('big',name2)])), ThrowErr('add_error')))
 
@@ -96,11 +92,14 @@ class ExplicateParser:
             arglist = []
             for arg in ast.args:
                 if not isinstance(arg,str):
-                    arglist+ [self.explicate(arg)]
+                    arglist+= [self.explicate(arg)]
                 else:
-                    arglist+[arg]
-            return CallFunc(ast.node,arglist, None,None)
-            #TODO: explicate over args
+                    arglist+=[arg]
+
+            if ast.node.name == "create_closure":
+                return InjectFrom('big',CallFunc(ast.node,arglist, None,None))
+            else:
+                return CallFunc(ast.node,arglist, None,None)
 
         elif isinstance(ast,Compare):
             l = self.explicate(ast.expr)
@@ -159,7 +158,6 @@ class ExplicateParser:
             return InjectFrom('big',Dict([(self.explicate(e), self.explicate(l)) for e,l in ast.items]))
 
         elif isinstance(ast,Subscript):
-            #print self.explicate(ast.subs[0])
             return Subscript(self.explicate(ast.expr), ast.flags, [self.explicate(ast.subs[0])])
 
         elif isinstance(ast,IfExp):
@@ -169,17 +167,17 @@ class ExplicateParser:
         elif isinstance(ast,If):
             return If([(self.explicate(ast.tests[0][0]), self.explicate(ast.tests[0][1]))], self.explicate(ast.else_))
         elif isinstance(ast,FuncLocals):
-            #print "fnunclocals"
             return Function(None, ast.name,ast.func.argnames, [],0,None, self.explicate(ast.func.code))
         elif isinstance(ast,Return):
             return Return(self.explicate(ast.value))
         elif isinstance(ast,CallPointer):
+            print ast.args
             arglist = []
             for arg in ast.args:
                 if not isinstance(arg,str):
-                    arglist+ [self.explicate(arg)]
+                    arglist+= [self.explicate(arg)]
                 else:
-                    arglist+[arg]
+                    arglist+=[arg]
             return CallPointer(self.explicate(ast.node), arglist)
         else:
             print "Error explicate:",ast

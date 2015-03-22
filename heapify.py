@@ -119,9 +119,9 @@ class Heapify:
         elif isinstance(ast,Const):
             return ast
         elif isinstance(ast,Name):
-            print curLocals
+            #print curLocals
             if ast.name in curLocals:
-                print "hi"
+                #print "hi"
                 return Subscript(ast, 'OP_APPLY', [Const(0)])
             return ast
         elif isinstance(ast,Add):
@@ -131,7 +131,8 @@ class Heapify:
         elif isinstance(ast,CallFunc):
             if ast.node.name == "input":
                 return ast
-            return CallPointer(CallFunc(Name('get_fun_ptr'), ast.node, None,None),[CallFunc(Name("get_free_vars"), ast.node)]+ast.args)
+            #print ast.args
+            return CallPointer(CallFunc(Name('get_fun_ptr'), Name(ast.node), None,None),[CallFunc(Name("get_free_vars"), Name(ast.node))]+ast.args)
         elif isinstance(ast,Compare):
             return Compare(self.closure(ast.expr,curLocals), [(ast.ops[0][0], self.closure(ast.ops[0][1],curLocals))])
         elif isinstance(ast,Or):

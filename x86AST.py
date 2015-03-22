@@ -14,6 +14,14 @@ class NameOp(Node):
     def __str__(self):
         return "%s" % self.name
 
+class LabelOp(Node):
+    def __init__(self, name):
+        self.name = name
+    def __repr__(self):
+        return "LabelOp(%s)" % self.name
+    def __str__(self):
+        return "%s" % self.name
+
 class RegOp(Node):
     def __init__(self, name):
         self.name = name
@@ -31,14 +39,15 @@ class ConstOp(Node):
         return "$%d" % self.value
 
 class FuncOp(Node):
-    def __init__(self, name, args, var):
+    def __init__(self, name, args, var, star =''):
         self.name = name
         self.args = args
         self.var = var
+        self.star = star
     def __repr__(self):
-        return "FuncOp(%s,%s,%s)" % (self.name, self.args, self.var)
+        return "FuncOp(%s,%s,%s,%s)" % (self.name, self.args, self.var, self.star)
     def __str__(self):
-        return "call %s %s -> %s" % (str(self.name),[str(arg) for arg in self.args], str(self.var))
+        return "call %s %s %s -> %s" % (self.star,str(self.name),[str(arg) for arg in self.args], str(self.var))
 
 class PrintOp(Node):
     def __init__(self, name):
@@ -85,11 +94,20 @@ class ClauseOp(Node):
     def __str__(self):
         return "%s:" % (str(self.label))
 
+class FuncStartOp(Node):
+    def __init__(self, name,args):
+        self.name = name
+        self.args = args
+    def __repr__(self):
+        return "FuncStartOp(%s, %s)" % (self.name,repr(self.args))
+    def __str__(self):
+        return "%s,%s" % (self.name, str(self.args))
+
 class ReturnOp(Node):
     def __init__(self, ret):
         self.ret = ret
     def __repr__(self):
-        return "EndOp(%s)" % (repr(self.ret))
+        return "ReturnOp(%s)" % (repr(self.ret))
     def __str__(self):
         return "%s:" % (str(self.ret))
 
@@ -178,6 +196,8 @@ class InterferenceGraph:
                     print "Unsupported Print Live"
             elif isinstance(line,FuncOp):
                 #print line.var
+                if line.star == '*':
+                    self.live[count].add(line.name.name)
                 if line.var.name != "*void":
                     self.live[count] -= Set([line.var.name])
                 for arg in line.args:
@@ -191,6 +211,9 @@ class InterferenceGraph:
 
             elif isinstance(line,ClauseOp):
                 labels[line.label.name]= self.live[count].copy()
+
+            elif isinstance(line,FuncStartOp):
+                self.live[count] = Set()
 
             elif isinstance(line,EndOp):
                 self.live[count] = Set()
@@ -217,7 +240,7 @@ class InterferenceGraph:
         self.interference['^edx'] = Set([])
         somelen = len(x86code)
         for count in range(0,somelen):
-            #print x86code[count],self.live[count]
+            print x86code[count],self.live[count]
             if isinstance(x86code[count], BinaryOp):
                 if isinstance(x86code[count].dest,ConstOp):
                     t = ""
@@ -284,10 +307,16 @@ class InterferenceGraph:
                     for var in self.live[count]:
                         if var != t:
                             addEdge(t,var)
+                if x86code[count].star == '*':
+                    for var in self.live[count]:
+                        if var != x86code[count].name.name:
+                            addEdge(x86code[count].name.name,var)
+            elif isinstance(x86code[count], FuncStartOp):
+                pass
             elif isinstance(x86code[count], EndOp):
                 pass
             else:
-                print "interference",x86code[count] 
+                #print "interference",x86code[count] 
                 pass
         #pprint(self.interference)
         return self.colorGraph(x86code);
@@ -327,6 +356,8 @@ class InterferenceGraph:
                 for i in range(0, len(coolList)):
                     if coolList[i]==0:
                         color[curNode] = i
+                        if i>self.maxcolor:
+                            self.maxcolor=i
                         break
 
             for node in self.interference[curNode]:
@@ -403,13 +434,16 @@ class InterferenceGraph:
                 x86colored.append(PrintOp(getRegVal(line.name)))
             elif isinstance(line, FuncOp):
                 x86revision.append(line)
-                x86colored.append(FuncOp(line.name, line.args, line.var))
+                x86colored.append(FuncOp(line.name, line.args, line.var,line.star))
             elif isinstance(line,JumpOp):
                 x86revision.append(line)
                 x86colored.append(JumpOp(line.name,line.label))
             elif isinstance(line,ClauseOp):
                 x86revision.append(line)
                 x86colored.append(ClauseOp(line.label))
+            elif isinstance(line,FuncStartOp):
+                x86revision.append(line)
+                x86colored.append(FuncStartOp(line.name, line.args))
             elif isinstance(line,EndOp):
                 x86revision.append(line)
                 x86colored.append(EndOp())
@@ -440,11 +474,14 @@ class InterferenceGraph:
                 return self.inputLookup[name.name]
             colorid = color[name.name]
             if colorid>5:
-                if colorid>self.maxcolor:
-                    self.maxcolor=colorid
+                #print self.maxcolor
+                #if colorid>self.maxcolor:
+                #    self.maxcolor=colorid
                 return "-%d(%%ebp)"%((colorid-5)*4)
             else:
                 return "%" + self.registerColors[colorid]
+        elif isinstance(name,LabelOp):
+            return "$%s"% name.name
         else:
             return "$%d"% name.value
 
@@ -455,8 +492,10 @@ class InterferenceGraph:
             if isinstance(line, FuncOp):
                 for arg in reversed(line.args):
                     finalString+="\tpushl %s\n" % (self.getArg(arg,color))
-                #self.inputLookup[line.var] = '%eax'
-                finalString+="\tcall %s\n" % str(line.name)
+                if line.star == '*':
+                    finalString+="\tcall *%s\n" % self.getArg(line.name,color)
+                else:
+                    finalString+="\tcall %s\n" % str(line.name)
                 if not line.var.name =="*void":
                     finalString+="\tmovl %%eax,%s\n"% (self.getArg(line.var,color))
                 finalString+="\taddl $%d, %%esp\n" %(4*len(line.args))
@@ -482,15 +521,19 @@ class InterferenceGraph:
                 finalString+=("\tmovl $0,%eax\n")
                 finalString+=("\tleave\n")
                 finalString+=("\tret\n")
+            elif isinstance(line,FuncStartOp):
+                finalString+=("%s:\n") % line.name
+                finalString+=("\tpushl %ebp\n")
+                finalString+=("\tmovl %esp, %ebp\n")
+                print self.maxcolor
+                if self.maxcolor <6:
+                    self.maxcolor = 0
+                else:
+                    finalString+=("\tsubl $%d, %%esp\n") % ((self.maxcolor-5)*4)
             else:
                 print "Unnaccounted Print", line
 
-        header=(".globl main\nmain:\n")
-        header+=("\tpushl %ebp\n")
-        header+=("\tmovl %esp, %ebp\n")
-        if self.maxcolor <6:
-            self.maxcolor = 0
-        else:
-            header+=("\tsubl $%d, %%esp\n") % ((self.maxcolor-5)*4)
+        header=(".globl main\n")
+       
         finalString = header+finalString
         return finalString

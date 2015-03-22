@@ -78,7 +78,12 @@ class flatParser:
     elif isinstance(ast,CallFunc):
       if ast.node.name == "input":
           ast.node.name = "input_int"
-      argFlat = [self.flatAst(arg) for arg in ast.args]
+      argFlat = []
+      for arg in ast.args:
+          if not isinstance(arg,str):
+              argFlat+= [self.flatAst(arg)]
+          else:
+              argFlat += [arg]
       newTmp = self.getNewTmp()
       self.flat.append(Assign(newTmp, CallFunc(ast.node,argFlat)))
       newTmp2 = self.getNewTmp()
@@ -192,13 +197,12 @@ class flatParser:
         self.flat.append(Assign(newTmp, InjectFrom('bool',newTmp)))
         return newTmp
     elif isinstance(ast,ThrowErr):
-        return ast
+        return Const(777777)
     elif isinstance(ast, Function):
         #print "Function"
-        self.flat.append(Name("Function "+ast.name))
-        #if ast.name == "main body":    
-            #self.flat.append(Assign(Name("True"), Const(5)))
-            #self.flat.append(Assign(Name("False"), Const(1)))
+        self.flat.append(Function(None,ast.name,ast.argnames, [],0,None,None))
+        #Function(None, ast.name,ast.func.argnames, [],0,None, self.explicate(ast.func.code))
+        #self.flat.append(Name("Function "+ast.name))
         self.flatAst(ast.code)
         self.flat.append(Name("FuncEnd "+ast.name))
 
@@ -207,10 +211,15 @@ class flatParser:
         child = self.flatAst(ast.value)
         
         self.flat.append(Return(child))
-        #self.
         return
     elif isinstance(ast,CallPointer):
-        argFlat = [self.flatAst(arg) for arg in ast.args]
+        argFlat = []
+        print ast.args
+        for arg in ast.args:
+            if not isinstance(arg,str):
+                argFlat+= [self.flatAst(arg)]
+            else:
+                argFlat += [arg]
         newTmp = self.getNewTmp()
         child = self.flatAst(ast.node)
         self.flat.append(Assign(newTmp, CallPointer(child,argFlat)))
@@ -272,6 +281,13 @@ class pyTo86:
                   self.output.append(ClauseOp(NameOp("end%s"%line[1])))
               elif line[0] == "FuncEnd":
                   self.output.append(EndOp())
+          elif isinstance(curLine,Function):
+              if curLine.name == "main body":
+                  funcName = "main"
+              else:
+                  funcName =curLine.name.replace(' ','')
+              #print funcName
+              self.output.append(FuncStartOp(funcName, [NameOp(arg) for arg in curLine.argnames]))
           elif isinstance(curLine, UnarySub):
               #check to delete
               self.output.append(UnaryOp("negl", NameOp(curLine.expr.name)))
@@ -292,6 +308,8 @@ class pyTo86:
           self.output.append(UnaryOp("negl", tmpName))
       elif isinstance(curLine, CallFunc):
           self.output.append(FuncOp(NameOp(curLine.node.name),[self.getConstOrName(arg) for arg in curLine.args],tmpName))
+      elif isinstance(curLine, CallPointer):
+          self.output.append(FuncOp(NameOp(curLine.node.name),[self.getConstOrName(arg) for arg in curLine.args],tmpName,'*'))
       elif isinstance(curLine, InjectFrom):
           if 0:
               self.output.append(BinaryOp("movl",self.getConstOrName(curLine.arg),tmpName))
@@ -372,7 +390,7 @@ class pyTo86:
           #need to implement cmovl
 
       else:
-          #print "Assign Error:",curLine
+          print "Assign Error:",curLine
           pass
 
   def getConstOrName(self, line):
@@ -380,6 +398,8 @@ class pyTo86:
       return  NameOp(line.name)
     elif isinstance(line,Const):
       return ConstOp(line.value)
+    elif isinstance(line,str):
+        return LabelOp(line.replace(' ',''))
     else:
       print "convert None Type", line
       return None
@@ -424,7 +444,7 @@ if __name__ == "__main__":
 
   myExplicate = ExplicateParser(ast)
   ast = myExplicate.explicate(ast)
-  #print ast
+  print ast
 
   parser = flatParser(ast)
 
