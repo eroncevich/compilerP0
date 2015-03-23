@@ -35,7 +35,7 @@ class Heapify:
                     #print arg, "eh", ast.name
                     self.needsHeaped|= Set([arg])
                     #ast.func.code.nodes.insert(0, Assign([AssName(arg, 'OP_ASSIGN')], List([Name(arg)])))
-            #print self.needsHeaped
+            print self.needsHeaped
                 
             localVars = Set()
             for arg in ast.local.values():

@@ -67,6 +67,8 @@ class Uniquify:
             return If([(self.replaceFunc(ast.tests[0][0]), self.replaceFunc(ast.tests[0][1]))], self.replaceFunc(ast.else_))
         elif isinstance(ast,Lambda):
             return FuncLocals({},Set(),Lambda(ast.argnames,[], 0, Stmt([Return(self.replaceFunc(ast.code))])),"empty")
+        elif isinstance(ast,Return):
+            return Return(self.replaceFunc(ast.value))
         else:
             print "Error toFunc:",ast
 
@@ -101,6 +103,7 @@ class Uniquify:
         elif isinstance(ast,Stmt):
             localVars = Set()
             for stmt in ast.nodes:
+                #print stmt
                 localVars|=self.getLocals(stmt)
             return localVars
         elif isinstance(ast,Printnl):

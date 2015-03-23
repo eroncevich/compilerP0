@@ -423,7 +423,7 @@ if __name__ == "__main__":
     inStr=myfile.read()
 
   f = open('/dev/null', 'w')
-  sys.stdout = f #Uncomment to turn off output
+  #sys.stdout = f #Uncomment to turn off output
 
   ast = compiler.parse(inStr)
   #print ast
@@ -448,7 +448,7 @@ if __name__ == "__main__":
 
   myExplicate = ExplicateParser(ast)
   ast = myExplicate.explicate(ast)
-  print ast
+  #print ast
 
   parser = flatParser(ast)
 
