@@ -214,13 +214,13 @@ class flatParser:
         return
     elif isinstance(ast,CallPointer):
         argFlat = []
-        print ast.args
+        #print ast.args
         for arg in ast.args:
             if not isinstance(arg,str):
                 argFlat+= [self.flatAst(arg)]
             else:
                 argFlat += [arg]
-        print argFlat
+        #print argFlat
         newTmp = self.getNewTmp()
         child = self.flatAst(ast.node)
         self.flat.append(Assign(newTmp, CallPointer(child,argFlat)))
@@ -293,7 +293,10 @@ class pyTo86:
               #check to delete
               self.output.append(UnaryOp("negl", NameOp(curLine.expr.name)))
           elif isinstance(curLine,Return):
-              print "goood"
+              #print curLine.value
+              self.output.append(ReturnOp(self.getConstOrName(curLine.value)))
+              #self.output.append(EndOp())
+              #print "goood"
 
 
   def convertLine(self,curLine,tmpName):
@@ -441,7 +444,7 @@ if __name__ == "__main__":
   ast = myHeap.heapAlloc(ast)
   #print ast
   ast = myHeap.closure(ast)
-  print ast
+  #print ast
 
   myExplicate = ExplicateParser(ast)
   ast = myExplicate.explicate(ast)
@@ -450,7 +453,7 @@ if __name__ == "__main__":
   parser = flatParser(ast)
 
   parser.flatAst(parser.ast)
-  parser.printFlat()
+  #parser.printFlat()
   to86 = pyTo86(parser.flat,parser.tmp)
   to86.convert86()
   #while 

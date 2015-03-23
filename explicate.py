@@ -171,7 +171,7 @@ class ExplicateParser:
         elif isinstance(ast,Return):
             return Return(self.explicate(ast.value))
         elif isinstance(ast,CallPointer):
-            print ast.args
+            #print ast.args
             arglist = []
             for arg in ast.args:
                 if not isinstance(arg,str):

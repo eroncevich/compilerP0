@@ -20,7 +20,7 @@ class Heapify:
         self.ast = ast
         self.varMap = {}
         self.unique_count = 0
-        self.lambdaNum =0
+        self.lambdaNum =-1
         self.freeVars={}
         self.needsHeaped = Set()
 
@@ -32,10 +32,10 @@ class Heapify:
             #print ast.local,ast.free
             for arg in ast.free:
                 if arg in curLocals:
-                    print arg, "eh", ast.name
+                    #print arg, "eh", ast.name
                     self.needsHeaped|= Set([arg])
                     #ast.func.code.nodes.insert(0, Assign([AssName(arg, 'OP_ASSIGN')], List([Name(arg)])))
-            print self.needsHeaped
+            #print self.needsHeaped
                 
             localVars = Set()
             for arg in ast.local.values():
@@ -123,7 +123,7 @@ class Heapify:
         elif isinstance(ast,Const):
             return ast
         elif isinstance(ast,Name):
-            print curLocals
+            #print curLocals
             #if ast.name in curLocals:
                 #print "hi"
             #    return Subscript(ast, 'OP_APPLY', [Const(0)])
@@ -163,4 +163,5 @@ class Heapify:
             print "Error heapify:",ast
 
     def getLambdaName(self):
+        self.lambdaNum+=1
         return "lambda %i" % self.lambdaNum
