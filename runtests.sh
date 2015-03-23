@@ -14,6 +14,8 @@ for f in tests/*.py
     gcc ${f%.*}".s" hashtable.o hashtable_itr.o hashtable_utility.o runtime.o -m32 -lm -o test
     COMPILED=$(./test <${f%.*}.in)
     SCRIPTED=$(python $f <${f%.*}.in)
+    #echo $COMPILED
+    #echo $SCRIPTED
     if [ "$COMPILED" = "$SCRIPTED" ]
       then
         printf ${green}$f${NC}"\n"

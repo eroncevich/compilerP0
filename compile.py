@@ -453,10 +453,22 @@ if __name__ == "__main__":
   parser.printFlat()
   to86 = pyTo86(parser.flat,parser.tmp)
   to86.convert86()
+  #while 
   #for line in to86.output: print line
-  ig = InterferenceGraph()
+  output = ""
+  for line in to86.output:
+      if isinstance(line,FuncStartOp):
+          funcCode=[line]
+      elif isinstance(line,EndOp):
+          funcCode.append(line)
+          ig = InterferenceGraph()
+          output += ig.createLiveness(funcCode)
+      else:
+          funcCode.append(line)
+  #print output
+  output=(".globl main\n")+output
 
-  output = ig.createLiveness(to86.output)
+  
   #output
   #igcolor = ig.colorGraph()
   #ig.cleanUpCrew(to86.output,igcolor)

@@ -240,7 +240,7 @@ class InterferenceGraph:
         self.interference['^edx'] = Set([])
         somelen = len(x86code)
         for count in range(0,somelen):
-            #print x86code[count],self.live[count]
+            print x86code[count],self.live[count]
             if isinstance(x86code[count], BinaryOp):
                 if isinstance(x86code[count].dest,ConstOp):
                     t = ""
@@ -442,8 +442,20 @@ class InterferenceGraph:
                 x86revision.append(line)
                 x86colored.append(ClauseOp(line.label))
             elif isinstance(line,FuncStartOp):
+                # revision = FuncStartOp(line.name,line.args)
+                # x86revision.append(revision)
+                # for index,arg in enumerate(line.args):
+                #     if getRegVal(arg)>5:
+                #         print getRegVal(arg)
+                #         spillage = True
+                #         newTmp = "temp %d" %self.spillTmp
+                #         self.spillTmp +=1
+                #         revision.args[index] = NameOp(newTmp)
+                #         self.priority.add(newTmp)
+                #         x86revision.append(BinaryOp("movl", NameOp(newTmp),arg))
                 x86revision.append(line)
                 x86colored.append(FuncStartOp(line.name, line.args))
+
             elif isinstance(line,EndOp):
                 x86revision.append(line)
                 x86colored.append(EndOp())
@@ -460,7 +472,7 @@ class InterferenceGraph:
         if spillage:
             self.resetGraph()
             self.iterations+=1
-            if self.iterations>8:
+            if self.iterations>20:
                 return ""
             else:
                 return self.createLiveness(x86revision)
@@ -531,8 +543,6 @@ class InterferenceGraph:
                         finalString+="\tmovl %d(%%ebp), %s\n" %(index*4+8, self.getArg(arg,color))
             else:
                 print "Unnaccounted Print", line
-
-        header=(".globl main\n")
        
-        finalString = header+finalString
+        #finalString = header+finalString
         return finalString

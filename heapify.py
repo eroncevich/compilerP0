@@ -123,10 +123,10 @@ class Heapify:
         elif isinstance(ast,Const):
             return ast
         elif isinstance(ast,Name):
-            #print curLocals
-            if ast.name in curLocals:
+            print curLocals
+            #if ast.name in curLocals:
                 #print "hi"
-                return Subscript(ast, 'OP_APPLY', [Const(0)])
+            #    return Subscript(ast, 'OP_APPLY', [Const(0)])
             return ast
         elif isinstance(ast,Add):
             return Add((self.closure(ast.left,curLocals),self.closure(ast.right,curLocals)))
