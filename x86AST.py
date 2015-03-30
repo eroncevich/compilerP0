@@ -417,7 +417,7 @@ class InterferenceGraph:
                         x86revision.append(BinaryOp("movl", NameOp(newTmp), line.dest))
                         self.priority.add(newTmp)
                         self.spillTmp +=1
-                        print "spill here"
+                        #print "spill here"
                         spillage = True
                     else:
                         x86revision.append(line)
@@ -519,13 +519,14 @@ class InterferenceGraph:
                     finalString+="\tcall *%s\n" % self.getArg(line.name,color)
                 else:
                     finalString+="\tcall %s\n" % str(line.name)
-                if not line.var.name =="*void":
-                    finalString+="\tmovl %%eax,%s\n"% (self.getArg(line.var,color))
-                finalString+="\taddl $%d, %%esp\n" %(4*len(line.args))
                 if line.star == '*':
                     finalString+="\tpopl %ebx\n"
                     finalString+="\tpopl %esi\n"
                     finalString+="\tpopl %edi\n"
+                if not line.var.name =="*void":
+                    finalString+="\tmovl %%eax,%s\n"% (self.getArg(line.var,color))
+                finalString+="\taddl $%d, %%esp\n" %(4*len(line.args))
+                
             elif isinstance(line, PrintOp):
                 arg = self.getArg(line.name, color)
                 finalString+="\tpushl %s\n" % arg
