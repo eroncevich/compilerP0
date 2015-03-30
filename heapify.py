@@ -1,5 +1,6 @@
 import uniquify
 from uniquify import *
+import copy
 class ClosureConversion:
     def __init__(self, globalName,fvs):
         self.globalName = globalName
@@ -24,9 +25,13 @@ class Heapify:
         self.freeVars={}
         self.needsHeaped = Set()
 
-    def heapAlloc(self,ast,curLocals = Set()):
+    def heapAlloc(self,ast,curLocals = Set()): #finds what variables need to be heaped
         if isinstance(ast,Module):
-            self.ast = Module(None,self.heapAlloc(ast.node, curLocals))
+            #print self.ast==ast
+            ast = Module(None,self.heapAlloc(ast.node, curLocals))
+            self.ast = copy.deepcopy(ast)
+            #ast = self.ast
+            #print self.ast
             return ast
         elif isinstance(ast,FuncLocals):
             #print ast.local,ast.free
@@ -54,8 +59,9 @@ class Heapify:
         elif isinstance(ast,Const):
             return ast
         elif isinstance(ast,Name):
-            if ast.name not in curLocals:
-                return Subscript(ast, 'OP_APPLY', [Const(0)])
+            # if ast.name not in curLocals:
+                # print ast.name
+                # return Subscript(ast, 'OP_APPLY', [Const(3)])
             return ast
         elif isinstance(ast,Add):
             return Add((self.heapAlloc(ast.left,curLocals),self.heapAlloc(ast.right,curLocals)))
@@ -91,23 +97,35 @@ class Heapify:
 
     def closure(self,ast,curLocals = Set()):
         if isinstance(ast,Module):
+            #self.ast =ast.copy()
             Module(None,self.closure(ast.node, curLocals))
             self.ast.node.nodes.pop()
             return Module(None,self.ast.node)
         elif isinstance(ast,FuncLocals):
             if ast.name == "empty":
                 ast.name = self.getLambdaName()
+            #print ast.free, ast.local
+
+
+            if ast.name == "main body":
+                ast.func.code.nodes.insert(0,Assign([AssName(ast.local['False'],'OP_ASSIGN')],Const(.25)))
+                ast.func.code.nodes.insert(0,Assign([AssName(ast.local['True'],'OP_ASSIGN')],Const(1.25)))
+
+            for arg in ast.local.values():
+                #print ast.name,arg
+                if arg in self.needsHeaped: #and arg not in ast.free?
+                    #print arg
+                    ast.func.code.nodes.insert(0,Assign([AssName(arg,'OP_HEAP')],List([Const(77)])))
+                    # ast.func.code.nodes.insert(0,Assign([AssName(arg,'OP_ASSIGN')],Const(77)))
 
             for index, arg in enumerate(sorted(ast.free)):
-                ast.func.code.nodes.insert(0,Assign([AssName(arg,'OP_ASSIGN')],Subscript(Name('fvs'),'OP_APPLY', [Const(index)])))
+                ast.func.code.nodes.insert(0,Assign([AssName(arg,'OP_HEAP')],Subscript(Name('fvs'),'OP_APPLY', [Const(index)])))
             ast.func.argnames.insert(0,'fvs')
             self.freeVars[ast.name] = ast.free
             self.ast.node.nodes.insert(0,FuncLocals(ast.local,ast.free,self.closure(ast.func,ast.free),ast.name))
-            #return ClosureConversion(ast.name, ast.free)
-            if ast.name == "main body":
-                #print ast.local['False']
-                self.ast.node.nodes[0].func.code.nodes.insert(0,Assign([AssName(ast.local['False'],'OP_ASSIGN')],Const(.25)))
-                self.ast.node.nodes[0].func.code.nodes.insert(0,Assign([AssName(ast.local['True'],'OP_ASSIGN')],Const(1.25)))
+            
+
+            
 
             return CallFunc(Name("create_closure"), [ast.name, List([Name(arg) for arg in sorted(ast.free)])], None, None)
         elif isinstance(ast,Stmt):
@@ -117,16 +135,18 @@ class Heapify:
         elif isinstance(ast,Assign):
             return Assign([self.closure(ast.nodes[0],curLocals)], self.closure(ast.expr,curLocals))
         elif isinstance(ast,AssName):
+            if ast.name in self.needsHeaped and ast.flags !='OP_HEAP':
+                return Subscript(Name(ast.name), 'OP_ASSIGN', [Const(0)])
+            if ast.flags == 'OP_HEAP':
+                ast.flags = 'OP_ASSIGN'
             return ast
         elif isinstance(ast,Discard):
             return Discard(self.closure(ast.expr,curLocals))
         elif isinstance(ast,Const):
             return ast
         elif isinstance(ast,Name):
-            #print curLocals
-            #if ast.name in curLocals:
-                #print "hi"
-            #    return Subscript(ast, 'OP_APPLY', [Const(0)])
+            if ast.name in self.needsHeaped:
+                return Subscript(ast, 'OP_APPLY', [Const(0)])
             return ast
         elif isinstance(ast,Add):
             return Add((self.closure(ast.left,curLocals),self.closure(ast.right,curLocals)))
@@ -136,7 +156,9 @@ class Heapify:
             if ast.node.name == "input":
                 return ast
             #print ast.args
-            return CallPointer(CallFunc(Name('get_fun_ptr'), Name(ast.node), None,None),[CallFunc(Name("get_free_vars"), Name(ast.node))]+ast.args)
+            #print ast.node
+            #print CallPointer(CallFunc(Name('get_fun_ptr'), [self.closure(Name(ast.node))], None,None),[CallFunc(Name("get_free_vars"), [self.closure(Name(ast.node))])]+ast.args)
+            return CallPointer(CallFunc(Name('get_fun_ptr'), [self.closure(ast.node)], None,None),[CallFunc(Name("get_free_vars"), [self.closure(ast.node)])]+ast.args)
         elif isinstance(ast,Compare):
             return Compare(self.closure(ast.expr,curLocals), [(ast.ops[0][0], self.closure(ast.ops[0][1],curLocals))])
         elif isinstance(ast,Or):

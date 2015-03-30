@@ -438,11 +438,10 @@ if __name__ == "__main__":
 
   myUnique.unique(ast)  
   print "@@@@@@@"
-  #print ast
-
+  print ast
   myHeap = Heapify(ast)
   ast = myHeap.heapAlloc(ast)
-  #print ast
+  print ast
   ast = myHeap.closure(ast)
   #print ast
 
@@ -453,7 +452,7 @@ if __name__ == "__main__":
   parser = flatParser(ast)
 
   parser.flatAst(parser.ast)
-  #parser.printFlat()
+  parser.printFlat()
   to86 = pyTo86(parser.flat,parser.tmp)
   to86.convert86()
   #while 
