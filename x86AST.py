@@ -109,7 +109,7 @@ class ReturnOp(Node):
     def __repr__(self):
         return "ReturnOp(%s)" % (repr(self.ret))
     def __str__(self):
-        return "%s:" % (str(self.ret))
+        return "ret %s" % (str(self.ret))
 
 class EndOp(Node):
     def __repr__(self):
@@ -128,6 +128,8 @@ class InterferenceGraph:
         self.maxcolor=0
         self.iterations =0
         self.inputLookup = {}
+        self.argLookup = {}
+        self.finalString = ""
 
     def resetGraph(self):
         self.interference = {}
@@ -316,7 +318,9 @@ class InterferenceGraph:
                         if var != x86code[count].name.name:
                             addEdge(x86code[count].name.name,var)
             elif isinstance(x86code[count], ReturnOp):
-                pass
+                if isinstance(x86code[count].ret, NameOp):
+                    if not self.interference.has_key(x86code[count].ret.name):
+                        self.interference[x86code[count].ret.name]= Set([])
             elif isinstance(x86code[count], FuncStartOp):
                 pass
             elif isinstance(x86code[count], EndOp):
@@ -453,18 +457,17 @@ class InterferenceGraph:
             elif isinstance(line,FuncStartOp):
                 revision = FuncStartOp(line.name,line.args)
                 x86revision.append(revision)
-                for index,arg in enumerate(line.args):
-                    curArg = getRegVal(arg)
-                    if isinstance(curArg,NameOp) and curArg.name>5:
-                        #print "hi"
-                        spillage = True
-                        newTmp = "temp %d" %self.spillTmp
-                        self.spillTmp +=1
-                        revision.args[index] = NameOp(newTmp)
-                        self.priority.add(newTmp)
-                        x86revision.append(BinaryOp("movl", NameOp(newTmp),arg))
-                #x86revision.append(line)
-                x86colored.append(FuncStartOp(line.name, line.args))
+                # for index,arg in enumerate(line.args):
+                #     curArg = getRegVal(arg)
+                #     if isinstance(curArg,NameOp) and curArg.name>5:
+                #         spillage = True
+                #         newTmp = "temp %d" %self.spillTmp
+                #         self.spillTmp +=1
+                #         revision.args[index] = NameOp(newTmp)
+                #         self.priority.add(newTmp)
+                #         x86revision.append(BinaryOp("movl", NameOp(newTmp),arg))
+
+                #x86colored.append(FuncStartOp(line.name, line.args))
 
             elif isinstance(line,EndOp):
                 x86revision.append(line)
@@ -492,6 +495,17 @@ class InterferenceGraph:
 
     def getArg(self, name,color):
         if isinstance(name, NameOp):
+            if self.argLookup.has_key(name.name):
+                stackId = self.argLookup[name.name]
+                del self.argLookup[name.name]
+                if color[name.name] >5:
+                    self.inputLookup[name.name] = "%d(%%ebp)" % stackId
+                    return self.inputLookup[name.name]
+                else:
+                    otherArg = self.getArg(name,color)
+                    self.finalString+="\tmovl %d(%%ebp), %s\n" %(stackId, otherArg)
+                    return otherArg
+
             if self.inputLookup.has_key(name.name):
                 return self.inputLookup[name.name]
             colorid = color[name.name]
@@ -505,69 +519,74 @@ class InterferenceGraph:
             return "$%d"% name.value
 
     def prettyPrint(self,x86revision,color):
+
         #print color
-        finalString = ""
+        #self.finalString = ""
         for line in x86revision:
             if isinstance(line, FuncOp):
                 if line.star == '*':
-                    finalString+="\tpushl %ebx\n"
-                    finalString+="\tpushl %esi\n"
-                    finalString+="\tpushl %edi\n"
+                    self.finalString+="\tpushl %ebx\n"
+                    self.finalString+="\tpushl %esi\n"
+                    self.finalString+="\tpushl %edi\n"
                 for arg in reversed(line.args):
-                    finalString+="\tpushl %s\n" % (self.getArg(arg,color))
+                    curArg =self.getArg(arg,color)
+                    self.finalString+="\tpushl %s\n" % (curArg)
                 if line.star == '*':
-                    finalString+="\tcall *%s\n" % self.getArg(line.name,color)
+                    self.finalString+="\tcall *%s\n" % self.getArg(line.name,color)
                 else:
-                    finalString+="\tcall %s\n" % str(line.name)
+                    self.finalString+="\tcall %s\n" % str(line.name)
                 if line.star == '*':
-                    finalString+="\tpopl %ebx\n"
-                    finalString+="\tpopl %esi\n"
-                    finalString+="\tpopl %edi\n"
+                    self.finalString+="\tpopl %ebx\n"
+                    self.finalString+="\tpopl %esi\n"
+                    self.finalString+="\tpopl %edi\n"
                 if not line.var.name =="*void":
-                    finalString+="\tmovl %%eax,%s\n"% (self.getArg(line.var,color))
-                finalString+="\taddl $%d, %%esp\n" %(4*len(line.args))
+                    self.finalString+="\tmovl %%eax,%s\n"% (self.getArg(line.var,color))
+                self.finalString+="\taddl $%d, %%esp\n" %(4*len(line.args))
                 
             elif isinstance(line, PrintOp):
                 arg = self.getArg(line.name, color)
-                finalString+="\tpushl %s\n" % arg
-                finalString+="\tcall print_any\n"
-                finalString+="\tpopl %s\n" % arg
+                self.finalString+="\tpushl %s\n" % arg
+                self.finalString+="\tcall print_any\n"
+                self.finalString+="\tpopl %s\n" % arg
             elif isinstance(line, BinaryOp):
                 leftArg = self.getArg(line.src, color)
+                stepString = self.finalString
                 rightArg = self.getArg(line.dest, color)
-                # if line.name == "andl":
-                #     print leftArg,line.dest
-                finalString+="\t%s %s, %s\n" %(line.name, leftArg,rightArg)
+                self.finalString=stepString
+
+                self.finalString+="\t%s %s, %s\n" %(line.name, leftArg,rightArg)
 
             elif isinstance(line,UnaryOp):
-                finalString+="\t%s %s\n" %(line.name, self.getArg(line.param, color))
+                self.finalString+="\t%s %s\n" %(line.name, self.getArg(line.param, color))
             elif isinstance(line,JumpOp):
-                finalString+="\t%s\n" % str(line)
+                self.finalString+="\t%s\n" % str(line)
             elif isinstance(line,ClauseOp):
-                finalString+="\t%s\n" % str(line)
+                self.finalString+="\t%s\n" % str(line)
             elif isinstance(line,ReturnOp):
-                finalString+= "\tmovl %s, %%eax\n" % self.getArg(line.ret,color)
-                finalString+=("\tleave\n")
-                finalString+=("\tret\n")   
+                self.finalString+= "\tmovl %s, %%eax\n" % self.getArg(line.ret,color)
+                self.finalString+=("\tleave\n")
+                self.finalString+=("\tret\n")   
             elif isinstance(line,EndOp):
-                finalString+=("\tmovl $0,%eax\n")
-                finalString+=("\tleave\n")
-                finalString+=("\tret\n")
+                self.finalString+=("\tmovl $0,%eax\n")
+                self.finalString+=("\tleave\n")
+                self.finalString+=("\tret\n")
             elif isinstance(line,FuncStartOp):
-                finalString+=("%s:\n") % line.name
-                finalString+=("\tpushl %ebp\n")
-                finalString+=("\tmovl %esp, %ebp\n")
+                self.finalString+=("%s:\n") % line.name
+                self.finalString+=("\tpushl %ebp\n")
+                self.finalString+=("\tmovl %esp, %ebp\n")
                 if self.maxcolor <6:
                     self.maxcolor = 0
                 else:
-                    finalString+=("\tsubl $%d, %%esp\n") % ((self.maxcolor-5)*4)
+                    self.finalString+=("\tsubl $%d, %%esp\n") % ((self.maxcolor-5)*4)
                 for index,arg in enumerate(line.args):
                     if color.has_key(arg.name):
-                        finalString+="\tmovl %d(%%ebp), %s\n" %(index*4+8, self.getArg(arg,color))
+                        #self.finalString+="\tmovl %d(%%ebp), %s\n" %(index*4+8, self.getArg(arg,color))
+                        #print "\tmovl %d(%%ebp), %s\n" %(index*4+8, self.getArg(arg,color))
+                        pass
             else:
                 print "Unnaccounted Print", line
 
         
        
         #finalString = header+finalString
-        return finalString
+        return self.finalString

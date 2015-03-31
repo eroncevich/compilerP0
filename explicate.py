@@ -68,9 +68,6 @@ class ExplicateParser:
             name1 = self.getNewTmp()
             name2 = self.getNewTmp()
 
-
-            #leftWord = (Or([IsType('int',[name1]),IsType('bool',[name1])]))
-            #rightWord = (Or([IsType('int',[name2]),IsType('bool',[name2])]))
             correctType = IsType('small',[name1,name2])
             correctBig = IsType('big',[name1,name2])
             ifExp = IfExp(correctType,InjectFrom('int', Add((ProjectTo('int',name1),ProjectTo('int',name2)))),

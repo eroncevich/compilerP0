@@ -30,8 +30,6 @@ class Heapify:
             #print self.ast==ast
             ast = Module(None,self.heapAlloc(ast.node, curLocals))
             self.ast = copy.deepcopy(ast)
-            #ast = self.ast
-            #print self.ast
             return ast
         elif isinstance(ast,FuncLocals):
             #print ast.local,ast.free
@@ -39,8 +37,6 @@ class Heapify:
                 if arg in curLocals:
                     #print arg, "eh", ast.name
                     self.needsHeaped|= Set([arg])
-                    #ast.func.code.nodes.insert(0, Assign([AssName(arg, 'OP_ASSIGN')], List([Name(arg)])))
-            print self.needsHeaped
                 
             localVars = Set()
             for arg in ast.local.values():
@@ -104,8 +100,6 @@ class Heapify:
         elif isinstance(ast,FuncLocals):
             if ast.name == "empty":
                 ast.name = self.getLambdaName()
-            #print ast.free, ast.local
-
 
             if ast.name == "main body":
                 ast.func.code.nodes.insert(0,Assign([AssName(ast.local['False'],'OP_ASSIGN')],Const(.25)))
@@ -155,8 +149,6 @@ class Heapify:
         elif isinstance(ast,CallFunc):
             if ast.node.name == "input":
                 return ast
-            if ast.node.name == "fact a0":
-                print "fact"
             #print CallPointer(CallFunc(Name('get_fun_ptr'), [self.closure(Name(ast.node))], None,None),[CallFunc(Name("get_free_vars"), [self.closure(Name(ast.node))])]+ast.args)
             return CallPointer(CallFunc(Name('get_fun_ptr'), [self.closure(ast.node)], None,None),[CallFunc(Name("get_free_vars"), [self.closure(ast.node)])]+[self.closure(arg) for arg in ast.args])
         elif isinstance(ast,Compare):

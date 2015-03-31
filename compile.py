@@ -78,8 +78,6 @@ class flatParser:
     elif isinstance(ast,CallFunc):
       if ast.node.name == "input":
           ast.node.name = "input_int"
-      if ast.node.name == "fact a0":
-          print "hi"
       argFlat = []
       for arg in ast.args:
           if not isinstance(arg,str):
@@ -201,7 +199,6 @@ class flatParser:
     elif isinstance(ast,ThrowErr):
         return Const(777777)
     elif isinstance(ast, Function):
-        #print "Function"
         self.flat.append(Function(None,ast.name,ast.argnames, [],0,None,None))
         #Function(None, ast.name,ast.func.argnames, [],0,None, self.explicate(ast.func.code))
         #self.flat.append(Name("Function "+ast.name))
@@ -454,18 +451,21 @@ if __name__ == "__main__":
   parser = flatParser(ast)
 
   parser.flatAst(parser.ast)
-  #parser.printFlat()
+  parser.printFlat()
   to86 = pyTo86(parser.flat,parser.tmp)
   to86.convert86()
-  #while 
   #for line in to86.output: print line
   output = ""
   for line in to86.output:
       if isinstance(line,FuncStartOp):
+          ig = InterferenceGraph()
           funcCode=[line]
+          for index,arg in enumerate(line.args):
+              ig.argLookup[arg.name] = (8+index*4)
+              #print arg
+          #print ig.argLookup
       elif isinstance(line,EndOp):
           funcCode.append(line)
-          ig = InterferenceGraph()
           output += ig.createLiveness(funcCode)
       else:
           funcCode.append(line)
