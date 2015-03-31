@@ -155,10 +155,10 @@ class Heapify:
         elif isinstance(ast,CallFunc):
             if ast.node.name == "input":
                 return ast
-            #print ast.args
-            #print ast.node
+            if ast.node.name == "fact a0":
+                print "fact"
             #print CallPointer(CallFunc(Name('get_fun_ptr'), [self.closure(Name(ast.node))], None,None),[CallFunc(Name("get_free_vars"), [self.closure(Name(ast.node))])]+ast.args)
-            return CallPointer(CallFunc(Name('get_fun_ptr'), [self.closure(ast.node)], None,None),[CallFunc(Name("get_free_vars"), [self.closure(ast.node)])]+ast.args)
+            return CallPointer(CallFunc(Name('get_fun_ptr'), [self.closure(ast.node)], None,None),[CallFunc(Name("get_free_vars"), [self.closure(ast.node)])]+[self.closure(arg) for arg in ast.args])
         elif isinstance(ast,Compare):
             return Compare(self.closure(ast.expr,curLocals), [(ast.ops[0][0], self.closure(ast.ops[0][1],curLocals))])
         elif isinstance(ast,Or):

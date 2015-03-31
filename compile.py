@@ -78,6 +78,8 @@ class flatParser:
     elif isinstance(ast,CallFunc):
       if ast.node.name == "input":
           ast.node.name = "input_int"
+      if ast.node.name == "fact a0":
+          print "hi"
       argFlat = []
       for arg in ast.args:
           if not isinstance(arg,str):
@@ -437,13 +439,13 @@ if __name__ == "__main__":
   #print ast
 
   myUnique.unique(ast)  
-  print "@@@@@@@"
+  #print "@@@@@@@"
   print ast
   myHeap = Heapify(ast)
   ast = myHeap.heapAlloc(ast)
-  print ast
-  ast = myHeap.closure(ast)
   #print ast
+  ast = myHeap.closure(ast)
+  print ast
 
   myExplicate = ExplicateParser(ast)
   ast = myExplicate.explicate(ast)
@@ -452,7 +454,7 @@ if __name__ == "__main__":
   parser = flatParser(ast)
 
   parser.flatAst(parser.ast)
-  parser.printFlat()
+  #parser.printFlat()
   to86 = pyTo86(parser.flat,parser.tmp)
   to86.convert86()
   #while 
