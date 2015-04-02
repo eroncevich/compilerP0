@@ -147,7 +147,8 @@ class Heapify:
         elif isinstance(ast,UnarySub):
             return UnarySub(self.closure(ast.expr,curLocals))
         elif isinstance(ast,CallFunc):
-            if ast.node.name == "input":
+
+            if isinstance(ast.node,Name) and ast.node.name == "input":
                 return ast
             #print CallPointer(CallFunc(Name('get_fun_ptr'), [self.closure(Name(ast.node))], None,None),[CallFunc(Name("get_free_vars"), [self.closure(Name(ast.node))])]+ast.args)
             return CallPointer(CallFunc(Name('get_fun_ptr'), [self.closure(ast.node)], None,None),[CallFunc(Name("get_free_vars"), [self.closure(ast.node)])]+[self.closure(arg) for arg in ast.args])

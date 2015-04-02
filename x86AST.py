@@ -117,6 +117,7 @@ class EndOp(Node):
     def __str__(self):
         return "FuncEnd"
 
+
 class InterferenceGraph:
     def __init__(self):
         self.interference = {}
@@ -214,7 +215,10 @@ class InterferenceGraph:
             elif isinstance(line,ClauseOp):
                 labels[line.label.name]= self.live[count].copy()
             elif isinstance(line,ReturnOp):
-                self.live[count] = Set([line.ret.name])
+                if isinstance(line.ret, NameOp):
+                    self.live[count] = Set([line.ret.name])
+                else:
+                    self.live[count] = Set()
 
             elif isinstance(line,FuncStartOp):
                 self.live[count] = Set()
@@ -397,6 +401,8 @@ class InterferenceGraph:
         x86colored = []
         def getRegVal(param):
             if isinstance(param, NameOp):
+                if self.argLookup.has_key(param.name):
+                    return NameOp(77)
                 if param.name not in color:
                     return -1
                 colorId =color[param.name]
@@ -497,12 +503,15 @@ class InterferenceGraph:
         if isinstance(name, NameOp):
             if self.argLookup.has_key(name.name):
                 stackId = self.argLookup[name.name]
-                del self.argLookup[name.name]
-                if color[name.name] >5:
+                #del self.argLookup[name.name]
+                if 1:#color[name.name] >5:
                     self.inputLookup[name.name] = "%d(%%ebp)" % stackId
                     return self.inputLookup[name.name]
                 else:
+                    print "here"
+                    del self.argLookup[name.name]
                     otherArg = self.getArg(name,color)
+                    #self.argLookup[name.name] = stackId
                     self.finalString+="\tmovl %d(%%ebp), %s\n" %(stackId, otherArg)
                     return otherArg
 
@@ -535,13 +544,14 @@ class InterferenceGraph:
                     self.finalString+="\tcall *%s\n" % self.getArg(line.name,color)
                 else:
                     self.finalString+="\tcall %s\n" % str(line.name)
+                
+                self.finalString+="\taddl $%d, %%esp\n" %(4*len(line.args))
                 if line.star == '*':
-                    self.finalString+="\tpopl %ebx\n"
-                    self.finalString+="\tpopl %esi\n"
                     self.finalString+="\tpopl %edi\n"
+                    self.finalString+="\tpopl %esi\n"
+                    self.finalString+="\tpopl %ebx\n"
                 if not line.var.name =="*void":
                     self.finalString+="\tmovl %%eax,%s\n"% (self.getArg(line.var,color))
-                self.finalString+="\taddl $%d, %%esp\n" %(4*len(line.args))
                 
             elif isinstance(line, PrintOp):
                 arg = self.getArg(line.name, color)
