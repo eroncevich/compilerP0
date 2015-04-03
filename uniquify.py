@@ -46,7 +46,8 @@ class Uniquify:
         elif isinstance(ast,UnarySub):
             return UnarySub(self.replaceFunc(ast.expr))
         elif isinstance(ast,CallFunc):
-            return ast
+            #return ast
+            return CallFunc(self.replaceFunc(ast.node),[self.replaceFunc(arg) for arg in ast.args], None,None)
         elif isinstance(ast,Compare):
             return Compare(self.replaceFunc(ast.expr), [(ast.ops[0][0], self.replaceFunc(ast.ops[0][1]))])
         elif isinstance(ast,Or):
@@ -107,7 +108,8 @@ class Uniquify:
                 localVars|=self.getLocals(stmt)
             return localVars
         elif isinstance(ast,Printnl):
-            return Set()
+            return self.getLocals(ast.nodes[0])
+            #return Set()
         elif isinstance(ast,Assign):
             return self.getLocals(ast.nodes[0]) |self.getLocals(ast.expr)
         elif isinstance(ast,AssName):
@@ -125,7 +127,13 @@ class Uniquify:
         elif isinstance(ast,UnarySub):
             return self.getLocals(ast.expr)
         elif isinstance(ast,CallFunc):
-            return Set()
+            print "pres"
+            localVars = Set()
+            localVars|= self.getLocals(ast.node)
+            for arg in ast.args:
+                localVars|= self.getLocals(arg)
+            return localVars
+            #return Set()
         elif isinstance(ast,Compare):
             return self.getLocals(ast.expr) | self.getLocals(ast.ops[0][1])
         elif isinstance(ast,Or):

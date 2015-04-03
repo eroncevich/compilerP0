@@ -110,7 +110,7 @@ class Heapify:
                 if arg in self.needsHeaped: #and arg not in ast.free?
                     #print arg
                     ast.func.code.nodes.insert(0,Assign([AssName(arg,'OP_HEAP')],List([Const(77)])))
-                    # ast.func.code.nodes.insert(0,Assign([AssName(arg,'OP_ASSIGN')],Const(77)))
+                    #pass
 
             for index, arg in enumerate(sorted(ast.free)):
                 ast.func.code.nodes.insert(0,Assign([AssName(arg,'OP_HEAP')],Subscript(Name('fvs'),'OP_APPLY', [Const(index)])))
@@ -119,8 +119,7 @@ class Heapify:
             self.ast.node.nodes.insert(0,FuncLocals(ast.local,ast.free,self.closure(ast.func,ast.free),ast.name))
             
 
-            
-
+            #print "hey", ast
             return CallFunc(Name("create_closure"), [ast.name, List([Name(arg) for arg in sorted(ast.free)])], None, None)
         elif isinstance(ast,Stmt):
             return Stmt([self.closure(stmt,curLocals) for stmt in ast.nodes])
@@ -150,8 +149,11 @@ class Heapify:
 
             if isinstance(ast.node,Name) and ast.node.name == "input":
                 return ast
-            #print CallPointer(CallFunc(Name('get_fun_ptr'), [self.closure(Name(ast.node))], None,None),[CallFunc(Name("get_free_vars"), [self.closure(Name(ast.node))])]+ast.args)
-            return CallPointer(CallFunc(Name('get_fun_ptr'), [self.closure(ast.node)], None,None),[CallFunc(Name("get_free_vars"), [self.closure(ast.node)])]+[self.closure(arg) for arg in ast.args])
+            #issue here, ast.node is used twice, could fix with Let
+            node = self.closure(ast.node)
+            #print '!',node
+            #return CallPointer(CallFunc(Name('get_fun_ptr'), [self.closure(ast.node)], None,None),[CallFunc(Name("get_free_vars"), [self.closure(ast.node)])]+[self.closure(arg) for arg in ast.args])
+            return CallPointer(CallFunc(Name('get_fun_ptr'), [node], None,None),[CallFunc(Name("get_free_vars"), [node])]+[self.closure(arg) for arg in ast.args])
         elif isinstance(ast,Compare):
             return Compare(self.closure(ast.expr,curLocals), [(ast.ops[0][0], self.closure(ast.ops[0][1],curLocals))])
         elif isinstance(ast,Or):

@@ -425,7 +425,7 @@ if __name__ == "__main__":
   sys.stdout = f #Uncomment to turn off output
 
   ast = compiler.parse(inStr)
-  #print ast
+  print ast
 
 
   myUnique = Uniquify(ast)
@@ -437,10 +437,10 @@ if __name__ == "__main__":
 
   myUnique.unique(ast)  
   #print "@@@@@@@"
-  print ast
+  print ast,"\n"
   myHeap = Heapify(ast)
   ast = myHeap.heapAlloc(ast)
-  #print ast
+
   ast = myHeap.closure(ast)
   print ast
 
