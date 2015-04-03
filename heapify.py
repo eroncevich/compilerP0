@@ -27,7 +27,6 @@ class Heapify:
 
     def heapAlloc(self,ast,curLocals = Set()): #finds what variables need to be heaped
         if isinstance(ast,Module):
-            #print self.ast==ast
             ast = Module(None,self.heapAlloc(ast.node, curLocals))
             self.ast = copy.deepcopy(ast)
             return ast
@@ -106,10 +105,12 @@ class Heapify:
                 ast.func.code.nodes.insert(0,Assign([AssName(ast.local['True'],'OP_ASSIGN')],Const(1.25)))
 
             for arg in ast.local.values():
-                #print ast.name,arg
-                if arg in self.needsHeaped: #and arg not in ast.free?
-                    #print arg
-                    ast.func.code.nodes.insert(0,Assign([AssName(arg,'OP_HEAP')],List([Const(77)])))
+                if arg in self.needsHeaped: #and arg not in ast.free?                    
+                    if arg in ast.func.argnames:
+                        # ast.func.code.nodes.insert(1,Assign([AssName(arg, 'OP_ASSIGN')],Name(arg)))
+                        ast.func.code.nodes.insert(0,Assign([AssName(arg,'OP_HEAP')],List([Name(arg)])))
+                    else:
+                        ast.func.code.nodes.insert(0,Assign([AssName(arg,'OP_HEAP')],List([Const(7777777)])))
                     #pass
 
             for index, arg in enumerate(sorted(ast.free)):
@@ -126,6 +127,8 @@ class Heapify:
         elif isinstance(ast,Printnl):
             return Printnl([self.closure(ast.nodes[0],curLocals)],ast.dest)
         elif isinstance(ast,Assign):
+            if isinstance(ast.nodes[0], AssName) and ast.nodes[0].flags == 'OP_HEAP':
+                return Assign([self.closure(ast.nodes[0],curLocals)], ast.expr)
             return Assign([self.closure(ast.nodes[0],curLocals)], self.closure(ast.expr,curLocals))
         elif isinstance(ast,AssName):
             if ast.name in self.needsHeaped and ast.flags !='OP_HEAP':
