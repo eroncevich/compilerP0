@@ -1,7 +1,4 @@
-def test(x):
-    x = x + x
+x =7
+def test():
     print x
-    def hello(y):
-        print y
-
-test(x)
+test()

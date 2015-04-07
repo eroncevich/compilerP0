@@ -1,4 +1,4 @@
 x = input()
 y = input()
-z = x + y
+z = x+y
 print z

@@ -10,8 +10,20 @@ print y is y
 z = 2
 print z is 2
 
+print 12+-10
 print z is 12 + -10
 
 print True is 1
 
 print True is True
+ls = [0,1,2] + [3,4,5]
+print ls
+
+d = {}
+d[0] = 1
+d[1] = 2
+print d[0] + d[1]
+
+d = {1:0}
+d[1]=7
+print d[1]
