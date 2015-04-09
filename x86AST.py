@@ -149,10 +149,19 @@ class InterferenceGraph:
 
     def createLiveness(self, x86code):
         labels = {}
+        whileLineNums = {}
         count = 0
-        for line in reversed(x86code):
-            self.live.append(self.live[count].copy())
+        x86reversed = x86code[::-1]
+        #for line in reversed(x86code):
+        while count <len(x86code):
+            
+            line = x86reversed[count]
+            if len(self.live)==count+1:
+                self.live.append(self.live[count].copy())
+            else:
+                self.live[count+1]=self.live[count].copy()
             count += 1
+            print "Count",count, self.live[1]
             if isinstance(line, BinaryOp):
                 if line.name == "addl":
                     if isinstance(line.src, NameOp):
@@ -207,13 +216,31 @@ class InterferenceGraph:
                     if isinstance(arg,NameOp):
                         self.live[count].add(arg.name)
             elif isinstance(line,JumpOp):
-                if line.name == "jmp":
-                    self.live[count] = labels[line.label.name]
+                #if line.label re.sub("^while")
+                if not labels.has_key(line.label.name) or whileLineNums.has_key(line.label.name) : #while loop, needs to repeat
+                    labels[line.label.name]= self.live[count].copy()
+                    whileLineNums[line.label.name] = count
                 else:
-                    self.live[count] = self.live[count] | labels[line.label.name]
+                    if line.name == "jmp":
+                        self.live[count] = labels[line.label.name]
+                    else:
+                        self.live[count] = self.live[count] | labels[line.label.name]
 
             elif isinstance(line,ClauseOp):
-                labels[line.label.name]= self.live[count].copy()
+                if whileLineNums.has_key(line.label.name):
+                    print "yoyoyoyo"
+                    print self.live[count]
+                    print labels[line.label.name]
+                    if self.live[count]== labels[line.label.name]:
+                        print "winner is you"
+                    else:
+                        labels[line.label.name] = self.live[count].copy()
+                        print "label says ", labels[line.label.name]
+                        count = whileLineNums[line.label.name]
+                        print x86reversed[count], count
+                        self.live[count] = labels[line.label.name].copy()
+                else:
+                    labels[line.label.name]= self.live[count].copy()
             elif isinstance(line,ReturnOp):
                 if isinstance(line.ret, NameOp):
                     self.live[count] = Set([line.ret.name])
@@ -248,7 +275,7 @@ class InterferenceGraph:
         self.interference['^edx'] = Set([])
         somelen = len(x86code)
         for count in range(0,somelen):
-            #print x86code[count],self.live[count]
+            print x86code[count],self.live[count]
             if isinstance(x86code[count], BinaryOp):
                 if isinstance(x86code[count].dest,ConstOp):
                     t = ""
@@ -418,6 +445,7 @@ class InterferenceGraph:
                     continue
                 if line.name == "cmove":
                     if coloredSrc.name>5:
+                        print line
                         print "Error on left cmove"
                         #Shouldn't come up
                     if coloredDest.name>5:

@@ -82,12 +82,14 @@ class Heapify:
             return IfExp(self.heapAlloc(ast.test,curLocals), self.heapAlloc(ast.then,curLocals), self.heapAlloc(ast.else_,curLocals))
         elif isinstance(ast,If):
             return If([(self.heapAlloc(ast.tests[0][0],curLocals), self.heapAlloc(ast.tests[0][1],curLocals))], self.heapAlloc(ast.else_,curLocals))
+        elif isinstance(ast,While):
+            return While(self.heapAlloc(ast.test,curLocals), self.heapAlloc(ast.body,curLocals), None)
         elif isinstance(ast,Lambda):
             return Lambda(ast.argnames,[], 0, self.heapAlloc(ast.code,curLocals))
         elif isinstance(ast,Return):
             return Return(self.heapAlloc(ast.value,curLocals))
         else:
-            print "Error heapify:",ast
+            print "Error alloc:",ast
 
 
     def closure(self,ast,curLocals = Set()):
@@ -175,6 +177,8 @@ class Heapify:
             return IfExp(self.closure(ast.test,curLocals), self.closure(ast.then,curLocals), self.closure(ast.else_,curLocals))
         elif isinstance(ast,If):
             return If([(self.closure(ast.tests[0][0],curLocals), self.closure(ast.tests[0][1],curLocals))], self.closure(ast.else_,curLocals))
+        elif isinstance(ast,While):
+            return While(self.closure(ast.test,curLocals), self.closure(ast.body,curLocals), None)
         elif isinstance(ast,Lambda):
             return Lambda(ast.argnames,[], 0, self.closure(ast.code,curLocals))
         elif isinstance(ast,Return):

@@ -66,6 +66,8 @@ class Uniquify:
             return IfExp(self.replaceFunc(ast.test), self.replaceFunc(ast.then), self.replaceFunc(ast.else_))
         elif isinstance(ast,If):
             return If([(self.replaceFunc(ast.tests[0][0]), self.replaceFunc(ast.tests[0][1]))], self.replaceFunc(ast.else_))
+        elif isinstance(ast,While):
+            return While(self.replaceFunc(ast.test), self.replaceFunc(ast.body),None)
         elif isinstance(ast,Lambda):
             return FuncLocals({},Set(),Lambda(ast.argnames,[], 0, Stmt([Return(self.replaceFunc(ast.code))])),"empty")
         elif isinstance(ast,Return):
@@ -127,7 +129,6 @@ class Uniquify:
         elif isinstance(ast,UnarySub):
             return self.getLocals(ast.expr)
         elif isinstance(ast,CallFunc):
-            print "pres"
             localVars = Set()
             localVars|= self.getLocals(ast.node)
             for arg in ast.args:
@@ -158,6 +159,8 @@ class Uniquify:
             return self.getLocals(ast.test)| self.getLocals(ast.then)| self.getLocals(ast.else_)
         elif isinstance(ast,If):
             return self.getLocals(ast.tests[0][0])| self.getLocals(ast.tests[0][1]) | self.getLocals(ast.else_)
+        elif isinstance(ast,While):
+            return self.getLocals(ast.test)| self.getLocals(ast.body)
         elif isinstance(ast,Lambda):
             localVars = Set()
             for arg in ast.argnames:
@@ -274,6 +277,8 @@ class Uniquify:
             return self.unique(ast.test, localVars, curLocals) | self.unique(ast.then, localVars, curLocals) |self.unique(ast.else_, localVars, curLocals)
         elif isinstance(ast,If):
             return self.unique(ast.tests[0][0], localVars, curLocals) | self.unique(ast.tests[0][1], localVars, curLocals)
+        elif isinstance(ast,While):
+            return self.unique(ast.test, localVars,curLocals)| self.unique(ast.body,localVars,curLocals)
         elif isinstance(ast,Lambda):
             ast.argnames = [localVars[arg] for arg in ast.argnames]
             freeVars = self.unique(ast.code, localVars, curLocals)

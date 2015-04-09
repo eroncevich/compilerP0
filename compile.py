@@ -165,6 +165,28 @@ class flatParser:
 
         self.flat.append(endName)
         return None #Should be a Stmt
+    elif isinstance(ast,While):
+        condTmp = self.getNewTmp()
+
+        startName = Name("while "+`self.ifTmp`)
+        (ifName,thenName,endName) = self.getIfTmp()
+        self.flat.append(startName)
+
+        test = self.flatAst(ast.test)
+        self.flat.append(Assign(condTmp,self.flatAst(CallFunc(Name('is_true'), [test]))))
+
+        self.flat.append(Name(ifName.name +' , '+condTmp.name))
+        #self.flat.append(Name("jump "+endName.name))
+
+        #else_ = self.flatAst(ast.else_)
+
+        self.flat.append(thenName)
+        then = self.flatAst(ast.body)
+        self.flat.append(Name("jump "+ startName.name))
+        #self.flat.append(Assign(newTmp,then))
+
+        self.flat.append(endName)
+        return None #Should be a Stmt
     elif isinstance(ast,InjectFrom):
         child = self.flatAst(ast.arg)
         newTmp = self.getNewTmp()
@@ -183,13 +205,7 @@ class flatParser:
         child = self.flatAst(ast.body)
         self.flat.append(Assign(newTmp1,child))
         return newTmp1
-    # elif isinstance(ast,IsType):
-    #     child = self.flatAst(ast.var[0])
-    #     newTmp = self.getNewTmp()
-    #     funcName = Name("is_%s" % ast.typ )
-    #     self.flat.append(Assign(newTmp, self.flatAst(CallFunc(funcName, [child]))))
-    #     self.flat.append(Assign(newTmp, InjectFrom('bool',newTmp)))
-    #     return newTmp
+
     elif isinstance(ast,IsType):
         childs = [self.flatAst(e) for e in ast.var]
         newTmp = self.getNewTmp()
@@ -279,8 +295,14 @@ class pyTo86:
                   self.output.append(ClauseOp(NameOp("then%s"%line[1])))
               elif line[0] == "end":
                   self.output.append(ClauseOp(NameOp("end%s"%line[1])))
+              elif line[0] == "while":
+                  self.output.append(ClauseOp(NameOp("while%s"%line[1])))
+              elif line[0] == "jump":
+                  self.output.append(JumpOp("jmp", NameOp("while%s"%line[2])))
               elif line[0] == "FuncEnd":
                   self.output.append(EndOp())
+              else:
+                  print line
           elif isinstance(curLine,Function):
               if curLine.name == "main body":
                   funcName = "main"
@@ -422,7 +444,7 @@ if __name__ == "__main__":
     inStr=myfile.read()
 
   f = open('/dev/null', 'w')
-  sys.stdout = f #Uncomment to turn off output
+  #sys.stdout = f #Uncomment to turn off output
 
   ast = compiler.parse(inStr)
   print ast
@@ -437,7 +459,7 @@ if __name__ == "__main__":
 
   myUnique.unique(ast)  
   #print "@@@@@@@"
-  print ast,"\n"
+  #print ast,"\n"
   myHeap = Heapify(ast)
   ast = myHeap.heapAlloc(ast)
 

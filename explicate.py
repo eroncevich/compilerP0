@@ -163,6 +163,8 @@ class ExplicateParser:
             return IsType(ast.typ,[self.explicate(e) for e in ast.var])
         elif isinstance(ast,If):
             return If([(self.explicate(ast.tests[0][0]), self.explicate(ast.tests[0][1]))], self.explicate(ast.else_))
+        elif isinstance(ast,While):
+            return While(self.explicate(ast.test), self.explicate(ast.body), None)
         elif isinstance(ast,FuncLocals):
             return Function(None, ast.name,ast.func.argnames, [],0,None, self.explicate(ast.func.code))
         elif isinstance(ast,Return):
