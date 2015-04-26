@@ -161,7 +161,7 @@ class InterferenceGraph:
             else:
                 self.live[count+1]=self.live[count].copy()
             count += 1
-            print "Count",count, self.live[1]
+            #print "Count",count, self.live[1]
             if isinstance(line, BinaryOp):
                 if line.name == "addl":
                     if isinstance(line.src, NameOp):
@@ -228,16 +228,16 @@ class InterferenceGraph:
 
             elif isinstance(line,ClauseOp):
                 if whileLineNums.has_key(line.label.name):
-                    print "yoyoyoyo"
-                    print self.live[count]
-                    print labels[line.label.name]
+                    #print "yoyoyoyo"
+                    #print self.live[count]
+                    #print labels[line.label.name]
                     if self.live[count]== labels[line.label.name]:
                         print "winner is you"
                     else:
                         labels[line.label.name] = self.live[count].copy()
-                        print "label says ", labels[line.label.name]
+                        #print "label says ", labels[line.label.name]
                         count = whileLineNums[line.label.name]
-                        print x86reversed[count], count
+                        #print x86reversed[count], count
                         self.live[count] = labels[line.label.name].copy()
                 else:
                     labels[line.label.name]= self.live[count].copy()
@@ -275,7 +275,7 @@ class InterferenceGraph:
         self.interference['^edx'] = Set([])
         somelen = len(x86code)
         for count in range(0,somelen):
-            print x86code[count],self.live[count]
+            #print x86code[count],self.live[count]
             if isinstance(x86code[count], BinaryOp):
                 if isinstance(x86code[count].dest,ConstOp):
                     t = ""
@@ -363,7 +363,6 @@ class InterferenceGraph:
         return self.colorGraph(x86code);
 
     def colorGraph(self, x86code):
-        print "start Color"
         color = {}
         saturation ={}
         color["^eax"]= 0
@@ -405,9 +404,6 @@ class InterferenceGraph:
                 saturation[node]+=1
             uncolored.remove(curNode)
 
-        #print color
-        #print saturation
-        print "endColor"
         return self.cleanUpCrew(x86code,color)
 
 

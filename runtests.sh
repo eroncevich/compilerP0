@@ -10,7 +10,12 @@ for f in tests/*.py
     fi
     rm ${f%.*}".s"
     rm "test"
-    python compile.py "$f"
+    if [ ! -z $1 ]
+      then 
+        python compile.py "$f"
+      else
+        python compile.py "$f" >/dev/null 2>&1
+    fi
     gcc ${f%.*}".s" hashtable.o hashtable_itr.o hashtable_utility.o runtime.o -m32 -lm -o test
     COMPILED=$(./test <${f%.*}.in)
     SCRIPTED=$(python $f <${f%.*}.in)
