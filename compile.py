@@ -9,6 +9,7 @@ from x86AST import *
 from explicate import *
 from uniquify import *
 from heapify import *
+from typecheck import *
 
 class flatParser:
   def __init__(self, ast):
@@ -466,14 +467,17 @@ if __name__ == "__main__":
   ast = myHeap.closure(ast)
   print ast
 
-  myExplicate = ExplicateParser(ast)
+  myTypeChecker = Typecheck()
+  typeMap = myTypeChecker.typeAnalyze(ast)
+
+  myExplicate = ExplicateParser(ast, typeMap)
   ast = myExplicate.explicate(ast)
   #print ast
 
   parser = flatParser(ast)
 
   parser.flatAst(parser.ast)
-  parser.printFlat()
+  #parser.printFlat()
   to86 = pyTo86(parser.flat,parser.tmp)
   to86.convert86()
   #for line in to86.output: print line

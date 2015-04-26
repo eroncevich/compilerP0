@@ -39,14 +39,20 @@ class IsType(Node):
 
 
 class ExplicateParser:
-    def __init__(self, ast):
+    def __init__(self, ast,myMap):
         self.tmp = 0
         self.ast = ast
+        self.typeMap = myMap
+        self.counter = 0
+        self.curType = "unknown"
         #self.flat = []
     def explicate(self,ast):
         if isinstance(ast,Module):
             return Module(ast.doc,self.explicate(ast.node))
         elif isinstance(ast,Stmt):
+            curStmt = []
+            for stmt in ast.nodes:
+                curStmt 
             return Stmt([self.explicate(stmt) for stmt in ast.nodes])
         elif isinstance(ast,Printnl):
             return Printnl([self.explicate(ast.nodes[0])],ast.dest)
@@ -60,11 +66,25 @@ class ExplicateParser:
             #return InjectFrom('int', ast)
             return Const(int(ast.value*4))
         elif isinstance(ast,Name):
+            self.curType = self.typeMap[self.counter][ast.name]
+
             return ast
         elif isinstance(ast,Add):
             l = self.explicate(ast.left)
+            lType = self.curType
             r = self.explicate(ast.right)
+            rType = self.curType
 
+            print lType
+            print rType
+            #lType = "unknown"
+
+            if lType == "int" and rType == "int":
+                self.curType = "int"
+                return InjectFrom('int', Add((ProjectTo('int',l),ProjectTo('int',r))))
+
+
+            #if lType == "unknown" or rType =="unknown":
             name1 = self.getNewTmp()
             name2 = self.getNewTmp()
 
@@ -74,10 +94,17 @@ class ExplicateParser:
                 IfExp(correctBig,InjectFrom('big',CallFunc(Name("add"),[ProjectTo('big',name1),ProjectTo('big',name2)])), ThrowErr('add_error')))
 
             return Let(name1, l,Let(name2,r,ifExp))
+            #return 
             #return ifExp
 
         elif isinstance(ast,UnarySub):
             child = self.explicate(ast.expr)
+            #cType = self.curType
+
+            if self.curType == "int":
+                self.curType = "int"
+                return InjectFrom('int', UnarySub(ProjectTo('int',child)))
+
             name = self.getNewTmp()
 
             orStmt= self.explicate(Or([IsType('int',[name]),IsType('bool',[name])]))
