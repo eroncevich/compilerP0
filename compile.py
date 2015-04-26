@@ -11,6 +11,8 @@ from uniquify import *
 from heapify import *
 from typecheck import *
 
+from folding import *
+
 class flatParser:
   def __init__(self, ast):
     self.tmp = 0
@@ -225,7 +227,7 @@ class flatParser:
     elif isinstance(ast,Return):
         newTmp = self.getNewTmp()
         child = self.flatAst(ast.value)
-        
+
         self.flat.append(Return(child))
         return
     elif isinstance(ast,CallPointer):
@@ -450,6 +452,10 @@ if __name__ == "__main__":
   ast = compiler.parse(inStr)
   print ast
 
+  folder = ConstantFold(ast)
+  ast = folder.fold(ast)
+  print ast
+
 
   myUnique = Uniquify(ast)
   #print ast
@@ -458,7 +464,7 @@ if __name__ == "__main__":
   myUnique.getLocals(ast)
   #print ast
 
-  myUnique.unique(ast)  
+  myUnique.unique(ast)
   #print "@@@@@@@"
   #print ast,"\n"
   myHeap = Heapify(ast)
@@ -499,7 +505,7 @@ if __name__ == "__main__":
   #print output
   output=(".globl main\n")+output
 
-  
+
   #output
   #igcolor = ig.colorGraph()
   #ig.cleanUpCrew(to86.output,igcolor)
