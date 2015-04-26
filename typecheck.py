@@ -13,6 +13,7 @@ class Typecheck:
             for stmt in ast.nodes:
                 print "-->", stmt
                 self.typeMap.append(self.typeMap[self.counter].copy())
+                self.counter+=1
                 self.typeAnalyze(stmt)
                 print self.typeMap[self.counter]
             return None
@@ -73,7 +74,11 @@ class Typecheck:
         elif isinstance(ast,IsType):
             return 
         elif isinstance(ast,If):
-            return
+            print "hi"
+            self.typeAnalyze(ast.tests[0][0])
+            self.typeAnalyze(ast.tests[0][1])
+            self.typeAnalyze(ast.else_)
+            return None
         elif isinstance(ast,While):
             return
         elif isinstance(ast,FuncLocals):

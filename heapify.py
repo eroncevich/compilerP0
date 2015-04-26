@@ -176,6 +176,7 @@ class Heapify:
         elif isinstance(ast,IfExp):
             return IfExp(self.closure(ast.test,curLocals), self.closure(ast.then,curLocals), self.closure(ast.else_,curLocals))
         elif isinstance(ast,If):
+            #print ast.locals[ast.else_]
             return If([(self.closure(ast.tests[0][0],curLocals), self.closure(ast.tests[0][1],curLocals))], self.closure(ast.else_,curLocals))
         elif isinstance(ast,While):
             return While(self.closure(ast.test,curLocals), self.closure(ast.body,curLocals), None)

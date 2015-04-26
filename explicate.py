@@ -43,7 +43,7 @@ class ExplicateParser:
         self.tmp = 0
         self.ast = ast
         self.typeMap = myMap
-        self.counter = 0
+        self.counter = -1
         self.curType = "unknown"
         #self.flat = []
     def explicate(self,ast):
@@ -52,8 +52,11 @@ class ExplicateParser:
         elif isinstance(ast,Stmt):
             curStmt = []
             for stmt in ast.nodes:
-                curStmt 
-            return Stmt([self.explicate(stmt) for stmt in ast.nodes])
+                self.counter +=1
+                print "#", self.typeMap[self.counter]
+                curStmt.append(self.explicate(stmt))
+            #return Stmt([ for stmt in ast.nodes])
+            return Stmt(curStmt)
         elif isinstance(ast,Printnl):
             return Printnl([self.explicate(ast.nodes[0])],ast.dest)
         elif isinstance(ast,Assign):
@@ -63,10 +66,11 @@ class ExplicateParser:
         elif isinstance(ast,Discard):
             return Discard(self.explicate(ast.expr))
         elif isinstance(ast,Const):
-            #return InjectFrom('int', ast)
+            #self.curType = "int"
             return Const(int(ast.value*4))
         elif isinstance(ast,Name):
-            self.curType = self.typeMap[self.counter][ast.name]
+            #self.curType = self.typeMap[self.counter][ast.name] if self.typeMap[self.counter].has_key(ast.name) else "unknown"
+            #self.curType = self.typeMap[self.counter][ast.name]
 
             return ast
         elif isinstance(ast,Add):
@@ -75,7 +79,7 @@ class ExplicateParser:
             r = self.explicate(ast.right)
             rType = self.curType
 
-            print lType
+            print lType, ast
             print rType
             #lType = "unknown"
 
