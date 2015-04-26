@@ -276,7 +276,7 @@ class Uniquify:
         elif isinstance(ast,IfExp):
             return self.unique(ast.test, localVars, curLocals) | self.unique(ast.then, localVars, curLocals) |self.unique(ast.else_, localVars, curLocals)
         elif isinstance(ast,If):
-            return self.unique(ast.tests[0][0], localVars, curLocals) | self.unique(ast.tests[0][1], localVars, curLocals)
+            return self.unique(ast.tests[0][0], localVars, curLocals) | self.unique(ast.tests[0][1], localVars, curLocals) |self.unique(ast.else_, localVars, curLocals)
         elif isinstance(ast,While):
             return self.unique(ast.test, localVars,curLocals)| self.unique(ast.body,localVars,curLocals)
         elif isinstance(ast,Lambda):
