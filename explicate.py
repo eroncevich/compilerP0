@@ -45,9 +45,16 @@ class ExplicateParser:
         self.typeMap = myMap
         self.counter = -1
         self.curType = "unknown"
-        self.big = "big"
-        self.int = "int"
-        self.bool = "bool"
+        on = 1
+        if on:
+            self.big = "big"
+            self.int = "int"
+            self.bool = "bool"
+        else:
+            self.big = "unknown"
+            self.int = "unknown"
+            self.bool = "unknown"
+        
         #self.flat = []
     def explicate(self,ast):
         if isinstance(ast,Module):
@@ -87,10 +94,10 @@ class ExplicateParser:
             #print lType, rType
 
             if (lType == 'int' or lType =='bool') and (rType == 'int' or rType=='bool'):
-                self.curType = "int"
+                self.curType = self.int
                 return InjectFrom('int', Add((ProjectTo('int',l),ProjectTo('int',r))))
             if lType == "big" and rType == "big":
-                self.curType = "int"
+                self.curType = self.big
                 return InjectFrom('big',CallFunc(Name("add"),[ProjectTo('big',l),ProjectTo('big',r)]))
 
 
@@ -112,7 +119,7 @@ class ExplicateParser:
             #cType = self.curType
 
             if self.curType == "int":
-                self.curType = "int"
+                self.curType = self.int
                 return InjectFrom('int', UnarySub(ProjectTo('int',child)))
 
             name = self.getNewTmp()
