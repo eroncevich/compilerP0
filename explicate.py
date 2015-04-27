@@ -45,6 +45,9 @@ class ExplicateParser:
         self.typeMap = myMap
         self.counter = -1
         self.curType = "unknown"
+        self.big = "big"
+        self.int = "int"
+        self.bool = "bool"
         #self.flat = []
     def explicate(self,ast):
         if isinstance(ast,Module):
@@ -53,7 +56,8 @@ class ExplicateParser:
             curStmt = []
             for stmt in ast.nodes:
                 self.counter +=1
-                print "#", self.typeMap[self.counter]
+                #print "#", self.typeMap[self.counter]
+                #print "-->", stmt
                 curStmt.append(self.explicate(stmt))
             #return Stmt([ for stmt in ast.nodes])
             return Stmt(curStmt)
@@ -66,10 +70,11 @@ class ExplicateParser:
         elif isinstance(ast,Discard):
             return Discard(self.explicate(ast.expr))
         elif isinstance(ast,Const):
-            #self.curType = "int"
+            self.curType = self.int
             return Const(int(ast.value*4))
         elif isinstance(ast,Name):
-            #self.curType = self.typeMap[self.counter][ast.name] if self.typeMap[self.counter].has_key(ast.name) else "unknown"
+            self.curType = self.typeMap[self.counter][ast.name] if self.typeMap[self.counter].has_key(ast.name) else "unknown"
+            #print ast.name
             #self.curType = self.typeMap[self.counter][ast.name]
 
             return ast
@@ -79,13 +84,14 @@ class ExplicateParser:
             r = self.explicate(ast.right)
             rType = self.curType
 
-            print lType, ast
-            print rType
-            #lType = "unknown"
+            #print lType, rType
 
-            if lType == "int" and rType == "int":
+            if (lType == 'int' or lType =='bool') and (rType == 'int' or rType=='bool'):
                 self.curType = "int"
                 return InjectFrom('int', Add((ProjectTo('int',l),ProjectTo('int',r))))
+            if lType == "big" and rType == "big":
+                self.curType = "int"
+                return InjectFrom('big',CallFunc(Name("add"),[ProjectTo('big',l),ProjectTo('big',r)]))
 
 
             #if lType == "unknown" or rType =="unknown":
@@ -131,7 +137,9 @@ class ExplicateParser:
 
         elif isinstance(ast,Compare):
             l = self.explicate(ast.expr)
+            lType = self.curType
             r = self.explicate(ast.ops[0][1])
+            rType = self.curType
 
             name1 = self.getNewTmp()
             name2 = self.getNewTmp()
@@ -147,6 +155,15 @@ class ExplicateParser:
                     exception = InjectFrom('bool', Const(0))
                 else:
                     exception = InjectFrom('bool', Const(1))
+
+                #print lType, rType
+
+                if (lType == 'int' or lType =='bool') and (rType == 'int' or rType=='bool'):
+                    self.curType = self.bool
+                    return InjectFrom('bool', Compare(ProjectTo('int',l),[(op, ProjectTo('int',r))]))
+                if lType =='big' and rType== 'big':
+                    self.curType = self.bool
+                    return InjectFrom('bool',CallFunc(funcName,[ProjectTo('big',l),ProjectTo('big',r)]))
 
                 ifExp = IfExp(self.explicate(And([leftWord,rightWord])),InjectFrom('bool', Compare(ProjectTo('int',name1),[(op, ProjectTo('int',name2))])),
                 IfExp(self.explicate(And([leftBig,rightBig])),InjectFrom('bool',CallFunc(funcName,[ProjectTo('big',name1),ProjectTo('big',name2)])), exception))
@@ -180,13 +197,20 @@ class ExplicateParser:
             #return InjectFrom('bool', )
 
         elif isinstance(ast,List):
-            return InjectFrom('big',List([self.explicate(e) for e in ast.nodes]))
+            tmpList = List([self.explicate(e) for e in ast.nodes])
+            self.curType = self.big
+            return InjectFrom('big',tmpList)
 
         elif isinstance(ast,Dict):
-            return InjectFrom('big',Dict([(self.explicate(e), self.explicate(l)) for e,l in ast.items]))
+            tmpDict = Dict([(self.explicate(e), self.explicate(l)) for e,l in ast.items])
+            self.curType = self.big
+            return InjectFrom('big',tmpDict)
 
         elif isinstance(ast,Subscript):
-            return Subscript(self.explicate(ast.expr), ast.flags, [self.explicate(ast.subs[0])])
+            tmpExpr = self.explicate(ast.expr)
+            tmpList = self.explicate(ast.subs[0])
+            self.curType = "unknown"
+            return Subscript(tmpExpr, ast.flags, [tmpList])
 
         elif isinstance(ast,IfExp):
             return IfExp(self.explicate(ast.test), self.explicate(ast.then), self.explicate(ast.else_))

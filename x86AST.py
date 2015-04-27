@@ -232,7 +232,8 @@ class InterferenceGraph:
                     #print self.live[count]
                     #print labels[line.label.name]
                     if self.live[count]== labels[line.label.name]:
-                        print "winner is you"
+                        #print "winner is you"
+                        pass
                     else:
                         labels[line.label.name] = self.live[count].copy()
                         #print "label says ", labels[line.label.name]

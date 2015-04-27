@@ -475,7 +475,7 @@ if __name__ == "__main__":
 
   myTypeChecker = Typecheck()
   typeMap = myTypeChecker.typeAnalyze(ast)
-  print "lsfdka", typeMap
+  #print "lsfdka", typeMap
 
   myExplicate = ExplicateParser(ast, typeMap)
   ast = myExplicate.explicate(ast)

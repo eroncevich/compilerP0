@@ -11,11 +11,11 @@ class Typecheck:
             return self.typeMap
         elif isinstance(ast,Stmt):
             for stmt in ast.nodes:
-                print "-->", stmt
+                #print "-->", stmt
                 self.typeMap.append(self.typeMap[self.counter].copy())
                 self.counter+=1
                 self.typeAnalyze(stmt)
-                print self.typeMap[self.counter]
+                #print self.typeMap[self.counter]
             return None
         elif isinstance(ast,Printnl):
             return 
@@ -35,14 +35,13 @@ class Typecheck:
             #print "name"
             return self.typeMap[self.counter][ast.name]
         elif isinstance(ast,Add):
-            print "add"
+            #print "add"
             left = self.typeAnalyze(ast.left)
             right = self.typeAnalyze(ast.right)
             if left == right:
                 return left
             return "unknown"
         elif isinstance(ast,UnarySub):
-            print "UnarySub"
             return self.typeAnalyze(ast.expr)
         elif isinstance(ast,CallFunc):
             if ast.node.name == "input":
@@ -61,27 +60,35 @@ class Typecheck:
             return
 
         elif isinstance(ast,List):
-            return 
+            return "big"
 
         elif isinstance(ast,Dict):
-            return
+            return "big"
 
         elif isinstance(ast,Subscript):
-            return 
+            if ast.flags == 'OP_ASSIGN':
+                if isinstance(ast.expr, Name):
+                    return ast.expr.name
+                return None
+            return "unknown"
 
         elif isinstance(ast,IfExp):
             return 
         elif isinstance(ast,IsType):
             return 
         elif isinstance(ast,If):
-            print "hi"
             self.typeAnalyze(ast.tests[0][0])
             self.typeAnalyze(ast.tests[0][1])
             self.typeAnalyze(ast.else_)
             return None
         elif isinstance(ast,While):
-            return
+            self.typeAnalyze(ast.test)
+            self.typeAnalyze(ast.body)
+            return None
         elif isinstance(ast,FuncLocals):
+            self.typeMap[self.counter] = {}
+            for arg in ast.func.argnames:
+                self.typeMap[self.counter][arg] = "unknown"
             return self.typeAnalyze(ast.func.code)
         elif isinstance(ast,Return):
             return 
