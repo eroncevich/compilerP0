@@ -76,10 +76,12 @@ class Typecheck:
             return 
         elif isinstance(ast,IsType):
             return 
-        elif isinstance(ast,If):
+        elif isinstance(ast,If): 
             self.typeAnalyze(ast.tests[0][0])
+            startMap = self.typeMap[self.counter].copy()
             self.typeAnalyze(ast.tests[0][1])
             ifMap= self.typeMap[self.counter]
+            self.typeMap[self.counter] = startMap
             self.typeAnalyze(ast.else_)
             elseMap= self.typeMap[self.counter].copy()
             for key in elseMap:
