@@ -188,10 +188,14 @@ class ConstantFold:
         elif isinstance(ast,Assign):
             retVal = self.propigation(ast.expr)
             if isinstance(ast.expr, Const):
-                if isinstance(ast.nodes[0], Name):
+                print "!!!!!!!!!!!!"
+                print ast.nodes[0]
+                if isinstance(ast.nodes[0], AssName):
+                    print "@@@@@@@@@@@@"
+                    print ast.nodes[0]
                     self.varMap[ast.nodes[0].name] = ast.expr.value
             elif retVal:
-                if isinstance(ast.nodes[0], Name):
+                if isinstance(ast.nodes[0], AssName):
                     if isinstance(ast.expr, Name):
                         self.varMap[ast.nodes[0].name] = retVal.value
 
