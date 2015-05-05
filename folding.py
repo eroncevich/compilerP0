@@ -188,11 +188,7 @@ class ConstantFold:
         elif isinstance(ast,Assign):
             retVal = self.propigation(ast.expr)
             if isinstance(ast.expr, Const):
-                print "!!!!!!!!!!!!"
-                print ast.nodes[0]
                 if isinstance(ast.nodes[0], AssName):
-                    print "@@@@@@@@@@@@"
-                    print ast.nodes[0]
                     self.varMap[ast.nodes[0].name] = ast.expr.value
             elif retVal:
                 if isinstance(ast.nodes[0], AssName):
@@ -217,6 +213,11 @@ class ConstantFold:
         elif isinstance(ast,Add):
             left = self.propigation(ast.left)
             right = self.propigation(ast.right)
+            print "########"
+            print ast
+            print left
+            print right
+            print "#########"
             if left:
                 ast.left = left
             if right:
