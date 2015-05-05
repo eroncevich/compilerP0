@@ -453,8 +453,8 @@ if __name__ == "__main__":
   print ast
 
   folder = ConstantFold(ast)
-  ast = folder.fold(ast)
-  print ast
+  # ast = folder.fold(ast)
+  # print ast
 
 
   myUnique = Uniquify(ast)
@@ -465,6 +465,9 @@ if __name__ == "__main__":
   #print ast
 
   myUnique.unique(ast)
+  ast = folder.fold(ast)
+  ast = folder.propigation(ast)
+  print ast
   #print "@@@@@@@"
   #print ast,"\n"
   myHeap = Heapify(ast)
