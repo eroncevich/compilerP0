@@ -79,7 +79,12 @@ class Typecheck:
         elif isinstance(ast,If):
             self.typeAnalyze(ast.tests[0][0])
             self.typeAnalyze(ast.tests[0][1])
+            ifMap= self.typeMap[self.counter]
             self.typeAnalyze(ast.else_)
+            elseMap= self.typeMap[self.counter].copy()
+            for key in elseMap:
+                if ifMap.has_key(key) and elseMap[key]!=ifMap[key]:
+                    self.typeMap[self.counter][key] = 'unknown'
             return None
         elif isinstance(ast,While):
             self.typeAnalyze(ast.test)
