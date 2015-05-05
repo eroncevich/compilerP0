@@ -164,6 +164,7 @@ class ConstantFold:
             print "Error toFunc:",ast
 
     def propigation(self, ast):
+        print ast
         if isinstance(ast,Module):
             self.propigation(ast.node)
             return ast
@@ -187,10 +188,13 @@ class ConstantFold:
         elif isinstance(ast,Assign):
             retVal = self.propigation(ast.expr)
             if isinstance(ast.expr, Const):
-                self.varMap[ast.nodes[0].name] = ast.expr.value
+                if isinstance(ast.nodes[0], Name):
+                    self.varMap[ast.nodes[0].name] = ast.expr.value
             elif retVal:
-                if isinstance(ast.expr, Name):
-                    self.varMap[ast.nodes[0].name] = retVal.value
+                if isinstance(ast.nodes[0], Name):
+                    if isinstance(ast.expr, Name):
+                        self.varMap[ast.nodes[0].name] = retVal.value
+
                 ast.expr = retVal
 
             return None
@@ -238,6 +242,9 @@ class ConstantFold:
         elif isinstance(ast,Dict):
             return None
         elif isinstance(ast,Subscript):
+            if isinstance(ast.subs[0], Name):
+                if self.varMap.has_key(ast.subs[0].name):
+                    return Const(self.varMap[ast.subs[0].name])
             return None
         elif isinstance(ast,IfExp):
             # testLists = self.propigation(ast.test)
