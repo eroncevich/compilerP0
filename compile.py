@@ -465,9 +465,10 @@ if __name__ == "__main__":
   #print ast
 
   myUnique.unique(ast)
+  ast = folder.fold(ast)
   ast = folder.propigation(ast)
+  ast = folder.fold(ast)
   print ast
-  exit()
   #print "@@@@@@@"
   #print ast,"\n"
   myHeap = Heapify(ast)
